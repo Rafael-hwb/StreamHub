@@ -1,0 +1,11 @@
+.env
+.env.local
+.env.*.local
+*.exe
+*.dll
+*.so
+*.dylib
+*.log
+vendor/
+.DS_Store
+Thumbs.db

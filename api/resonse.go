@@ -1,11 +1,15 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/Rafael-hwb/streamhub/api/defs"
 
-func SendErrorResponse(context *gin.Context){
+	"github.com/gin-gonic/gin"
+)
 
+func SendErrorResponse(context *gin.Context, errResponse defs.ErrResponse){
+	context.AbortWithStatusJSON(errResponse.HttpSC, errResponse.Error)
 }
 
-func SendNormalResponse(context *gin.Context){
-	
+func SendNormalResponse(context *gin.Context, statusCode int, response interface{}){
+	context.JSON(statusCode, response)
 }

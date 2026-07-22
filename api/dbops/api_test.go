@@ -2,6 +2,8 @@ package dbops
 
 import (
 	"testing"
+	"time"
+	"strconv"
 )
 
 func clearTables(){
@@ -17,7 +19,10 @@ func TestMain(m *testing.M){
 	clearTables()
 }
 
+
+//test:USers
 func TestUserWorkflow(t *testing.T){
+	clearTables()
 	t.Run("Add",testAddUser)
 	t.Run("Get",testGetUser)
 	t.Run("Delete",testDeleteUser)
@@ -57,9 +62,11 @@ func testRegetUser(t *testing.T){
 }
 
 
+//test:vedio
 var tempvid string
 
 func TestVideoWorkflow(t *testing.T){
+	clearTables()
 	t.Run("AddVideo",testAddVideo)
 	t.Run("GetVideo",testGetVideo)
 	t.Run("DeleteVideo",testDeleteVideo)
@@ -97,4 +104,48 @@ func testRegetVideo(t *testing.T){
 	if video != nil {
 		t.Error("Delete video failed.")
 	}
+}
+
+
+
+
+//test:comment
+func TestCommentWorkflow(t *testing.T){
+	clearTables()
+	t.Run("Add User", testAddUser)
+	t.Run("Add Comment", testAddComment)
+	t.Run("List Comments", testListcomments)
+
+}
+
+func testAddComment(t *testing.T){
+	vid := "12345"
+	aid := 1
+	content1 := "Add the first comment."
+	content2 := "Add the second comment."
+	err1 := AddComment(vid, aid, content1)
+	if err1 != nil {
+		t.Errorf("Error of add the fitst comment: %v", err1)
+	}
+	
+	err2 := AddComment(vid, aid, content2)
+	if err2 != nil {
+		t.Errorf("Error of add the second comment: %v", err2)
+	}
+}
+
+func testListcomments(t *testing.T){
+	vid := "12345"
+	originTime := 1514764880
+	endTime, _ := strconv.Atoi(strconv.FormatInt(time.Now().UnixNano()/1000000000, 10))
+
+	res, err := ListComments(vid, originTime, endTime)
+	if err != nil {
+		t.Errorf("Error of ListComments: %v", err)
+	}
+
+	for i, comment := range(res){
+		t.Logf("comment%d: %v\n", i, comment)
+	}
+
 }

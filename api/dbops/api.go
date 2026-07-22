@@ -2,8 +2,8 @@ package dbops
 
 import (
 	"time"
-	"api/defs"
-	"api/utils"
+	"github.com/Rafael-hwb/streamhub/api/defs"
+	"github.com/Rafael-hwb/streamhub/api/utils"
 	"database/sql"
 	_ "database/sql"
 	"log"
@@ -15,11 +15,13 @@ func AddCredential(loginName string, pwd string) error{
 	if err != nil{
 		return err
 	}
+	defer stmtIns.Close()
+
 	_, err = stmtIns.Exec(loginName,pwd)
 	if err != nil{
 		return err
 	}
-	defer stmtIns.Close()
+
 	return nil
 }
 
@@ -29,12 +31,14 @@ func GetCredential(loginName string) (string, error){
 		log.Printf("%s", err)
 		return "", err
 	}
+	defer stmtOut.Close()
+
 	var pwd string
 	err = stmtOut.QueryRow(loginName).Scan(&pwd)
 	if err != nil && err != sql.ErrNoRows{
 		return "", err
 	}
-	defer stmtOut.Close()
+
 	return pwd,nil
 }
 
@@ -44,11 +48,13 @@ func DeleteCredential(loginName string, pwd string) error{
 		log.Printf("DeleteUser error: %s", err)
 		return err
 	}
+	defer stmtDel.Close()
+
 	_,err = stmtDel.Exec(loginName, pwd)
 	if err != nil {
 		return err
 	}
-	defer stmtDel.Close()
+
 	return nil
 }
 
@@ -58,12 +64,14 @@ func AddVideo(aid int, title string) (*defs.VideoInfo, error){
 		return nil, err
 	}
 	t := time.Now()
-	ctime := t.Format("jan 2 2006, 15:04:05")
+	ctime := t.Format("Jan 2 2006, 15:04:05")
+
 	stmtIn, err := dbConnection.Prepare(`INSERT INTO video_info (id, title, author_id, display_ctime)
 						VALUES(?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
+	defer stmtIn.Close()
 
 	_, err = stmtIn.Exec(vid, title, aid, ctime)
 	if err != nil {
@@ -71,8 +79,6 @@ func AddVideo(aid int, title string) (*defs.VideoInfo, error){
 	}
 
 	result := &defs.VideoInfo{Id: vid, AuthorId: aid, Title: title, DisplayCtime: ctime}
-	
-	defer stmtIn.Close()
 	return result,nil
 }
 
@@ -81,6 +87,8 @@ func GetVideo(vid string) (*defs.VideoInfo, error){
 	if err != nil {
 		return nil, err
 	}
+	defer stmtOut.Close()
+
 	var(
 		aid int
 		title string
@@ -95,7 +103,6 @@ func GetVideo(vid string) (*defs.VideoInfo, error){
 	}
 
 	videoInfo := &defs.VideoInfo{Id: vid, AuthorId: aid, Title: title, DisplayCtime: ctime}
-	defer stmtOut.Close()
 	return videoInfo, nil
 }
 
@@ -104,11 +111,67 @@ func DeleteVideo(id string) error{
 	if err != nil {
 		return err
 	}
+	defer stmtDel.Close()
+
 	_, err = stmtDel.Exec(id)
 	if err != nil {
 		return err
 	}
-	
-	defer stmtDel.Close()
+
 	return nil
+}
+
+func AddComment(vid string, aid int, content string) error{
+	id, err := utils.NewUUID()
+	if err != nil {
+		return err
+	}
+
+	stmtIn, err := dbConnection.Prepare("INSERT INTO comments (id, video_id, author_id, content, create_time) VALUES (?, ?, ?, ?, NOW())")
+	if err != nil {
+		return err
+	}
+	defer stmtIn.Close()
+
+	_, err = stmtIn.Exec(id, vid, aid, content)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ListComments(vid string, originTime int, endTime int) ([]*defs.Comment, error){
+	stmtOut, err := dbConnection.Prepare(`SELECT comments.id, users.login_name, comments.content
+										FROM comments
+										INNER JOIN users ON comments.author_id = users.id
+										where comments.video_id = ? 
+										AND comments.create_time > FROM_UNIXTIME(?) 
+										AND comments.create_time <= FROM_UNIXTIME(?)`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmtOut.Close()
+
+	rows, err := stmtOut.Query(vid, originTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*defs.Comment
+
+	for rows.Next(){
+		var id, name, content string
+		if err := rows.Scan(&id, &name, &content);err !=nil {
+			return result, err
+		}
+		result = append(result, &defs.Comment{VideoId: id, AuthorName: name, Content: content})
+	}
+
+	if err := rows.Err(); err != nil {
+		return result, err
+	}
+
+	return result,nil
 }

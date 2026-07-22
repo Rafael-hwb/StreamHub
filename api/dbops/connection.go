@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"os"
 	"fmt"
+	"path/filepath"
 	_"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 var(
@@ -13,6 +15,20 @@ var(
 )
 
 func init(){
+	cwd, _ := os.Getwd()
+	envPath := filepath.Join(cwd, ".env")
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		envPath = filepath.Join(cwd, "..", ".env")
+	}
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		envPath = filepath.Join(cwd, "api", ".env")
+	}
+	if _, err := os.Stat(envPath); !os.IsNotExist(err) {
+		if err := godotenv.Load(envPath); err != nil {
+			fmt.Printf("Warning: failed to load .env file: %v\n", err)
+		}
+	}
+
 	user := os.Getenv("MYSQL_USER")
 	if user == "" {
 		user = "root"
