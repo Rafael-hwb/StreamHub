@@ -4,9 +4,9 @@ import (
 	"net/http"
 )
 
-const(
-	VIDEO_DIR = "./videos"
-	MAX_UPLOAD_SIZE = 1024*1024*50 //50MB
+const (
+	VIDEO_DIR       = "./videos/"
+	MAX_UPLOAD_SIZE = 1024 * 1024 * 50 //50MB
 )
 
 type ErrStruct struct {
@@ -35,11 +35,19 @@ var (
 		},
 	}
 
-		ErrorFileTooBig = ErrResponse{
+	ErrorFileTooBig = ErrResponse{
 		HttpCode: http.StatusBadRequest,
 		Err: ErrStruct{
 			ErrMessage: "File is too big.",
-			ErrCode:    "002",
+			ErrCode:    "003",
+		},
+	}
+
+	ErrorRequestError = ErrResponse{
+		HttpCode: http.StatusBadRequest,
+		Err: ErrStruct{
+			ErrMessage: "File request error.",
+			ErrCode:    "004",
 		},
 	}
 )

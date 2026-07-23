@@ -1,22 +1,37 @@
 package main
 
 import (
-	"os"
+	"html/template"
 	"net/http"
+	"os"
 	"time"
+
 	"github.com/gin-gonic/gin"
 )
+
+func TestPageHandler(context *gin.Context) {
+	t, err := template.ParseFiles("./videos/upload.html")
+	if err != nil {
+		SendErrorResponse(context, ErrorInternalFaults)
+		return
+	}
+
+	err = t.Execute(context.Writer, nil)
+	if err != nil {
+		SendErrorResponse(context, ErrorInternalFaults)
+		return
+	}
+}
 
 func StreamHandler(context *gin.Context) {
 	vid := context.Param("vid-id")
 	videoLink := VIDEO_DIR + vid
 
 	video, err := os.Open(videoLink)
-	if err != nil{
+	if err != nil {
 		SendErrorResponse(context, ErrorInternalFaults)
 		return
 	}
-	context.Header("Content-Type", "video/mp4")
 	http.ServeContent(context.Writer, context.Request, "", time.Now(), video)
 
 	defer video.Close()
@@ -33,7 +48,7 @@ func UploadHandler(context *gin.Context) {
 
 	file, err := context.FormFile("file")
 	if err != nil {
-		SendErrorResponse(context, ErrorInternalFaults)
+		SendErrorResponse(context, ErrorRequestError)
 		return
 	}
 

@@ -21,8 +21,10 @@ func RegisterHandlers() *gin.Engine {
 
 	router.Use(LimiterMiddleware(10))
 
-	router.GET("/vedios/:vid-id", StreamHandler)
+	router.GET("/videos/:vid-id", StreamHandler)
 	router.POST("/upload/:vid-id", UploadHandler)
+
+	router.GET("/testpage", TestPageHandler)
 
 	return router
 }
