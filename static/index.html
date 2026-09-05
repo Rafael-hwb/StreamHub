@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>StreamHub</title>
+</head>
+<body>
+  <h1>StreamHub</h1>
+  <h2 id="form-title">登录</h2>
+  <input id="user_name" placeholder="用户名"><br>
+  <input id="pwd" type="password" placeholder="密码"><br>
+  <button id="submit-btn" onclick="submit()">登录</button>
+  <p><a href="#" onclick="toggle()">没有账号？去注册</a></p>
+  <p id="msg"></p>
+
+  <script>
+    let isLogin = true;
+
+    function toggle() {
+      isLogin = !isLogin;
+      document.getElementById("form-title").textContent = isLogin ? "登录" : "注册";
+      document.getElementById("submit-btn").textContent = isLogin ? "登录" : "注册";
+    }
+
+    async function submit() {
+      const user_name = document.getElementById("user_name").value;
+      const pwd = document.getElementById("pwd").value;
+      const msg = document.getElementById("msg");
+
+      const res = await fetch(isLogin ? "/user/login" : "/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name, pwd }),  // 字段名必须和 Go 的 json tag 一致
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        localStorage.setItem("session_id", data.session_id);
+        localStorage.setItem("user_name", user_name);
+        location.href = "/userhome";
+      } else {
+        msg.textContent = data.error || "请求失败";
+      }
+    }
+  </script>
+</body>
+</html>

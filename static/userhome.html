@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>StreamHub 用户主页</title>
+</head>
+<body>
+  <h1>你好，<span id="who"></span></h1>
+  <button onclick="logout()">退出登录</button>
+  <hr>
+  <input type="file" id="file-input">
+  <button onclick="upload()">上传视频</button>
+  <p id="msg"></p>
+  <video id="player" controls width="640" hidden></video>
+
+  <script>
+    const sessionId = localStorage.getItem("session_id");
+    if (!sessionId) {
+      location.href = "/";   // 没有登录态就回登录页
+    }
+    document.getElementById("who").textContent = localStorage.getItem("user_name");
+
+    async function upload() {
+      const fileInput = document.getElementById("file-input");
+      if (!fileInput.files[0]) { alert("请先选择文件"); return; }
+
+      const vid = crypto.randomUUID();   // 生成视频 id
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);  // 字段名必须叫 file
+
+      const res = await fetch("http://localhost:9000/upload/" + vid, {
+        method: "POST",
+        body: formData,     // 不要手动设 Content-Type，让浏览器带 boundary
+      });
+
+      const msg = document.getElementById("msg");
+      if (res.ok) {
+        msg.textContent = "上传成功，视频 id：" + vid;
+        const player = document.getElementById("player");
+        player.src = "http://localhost:9000/videos/" + vid;
+        player.hidden = false;
+      } else {
+        msg.textContent = "上传失败：" + res.status;
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("session_id");
+      localStorage.removeItem("user_name");
+      location.href = "/";
+    }
+  </script>
+</body>
+</html>

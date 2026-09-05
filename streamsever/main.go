@@ -20,6 +20,7 @@ func RegisterHandlers() *gin.Engine {
 	router := gin.Default()
 
 	router.Use(LimiterMiddleware(10))
+	router.Use(CorsMiddleware())
 
 	router.GET("/videos/:vid-id", StreamHandler)
 	router.POST("/upload/:vid-id", UploadHandler)
