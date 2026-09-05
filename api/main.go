@@ -20,6 +20,10 @@ func RegisterHandlers() *gin.Engine {
 	router.POST("/user", CreateUser)
 	router.POST("/user/login", Login)
 
+	router.Static("/static", "./static")
+	router.StaticFile("/", "./static/index.html")
+	router.StaticFile("/userhome", "./static/userhome.html")
+
 	api := router.Group("/api")
 	api.Use(SessionMiddleware)
 

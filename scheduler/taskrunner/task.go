@@ -21,8 +21,8 @@ func DeleteVideo(vid string) error{
 }
 
 
-func VedioClearDispatcher(dc DataChannel, count int) error{
-	ids, err := dbops.ReadVideoDeletionRecord(count)
+func VideoClearDispatcher(dc DataChannel) error{
+	ids, err := dbops.ReadVideoDeletionRecord(3)
 	if err != nil {
 		log.Printf("VideoClearDispatcher error: %v", err)
 		return err

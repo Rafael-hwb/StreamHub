@@ -2,7 +2,6 @@ package taskrunner
 
 import (
 	"time"
-	"log"
 )
 
 type Worker struct{
@@ -26,6 +25,7 @@ func (w *Worker) StartWorker(){
 	}
 }
 
-func Start(){
-	r := CreateNewRunner(3, false, d Function, e Function)
+func Start() {
+	r := CreateNewRunner(3, false, VideoClearDispatcher, VideoClearExecuter)
+	go r.StartDispatch()
 }

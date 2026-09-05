@@ -1,14 +1,13 @@
 package dbops
 
 import (
-	"github.com/go-sql-driver/mysql"
 	"log"
 	)
 
 
 
 func AddVideoDeletionRecord(vid string) error{
-	stmtIn, err := dbConnection.Prepare("INSERT INTO video_del_rec (video_id)")
+	stmtIn, err := dbConnection.Prepare("INSERT INTO video_del_rec (video_id) VALUES (?)")
 
 	if err != nil {
 		return err

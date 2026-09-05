@@ -13,5 +13,3 @@ const(
 
 	VEDIO_PATH = "./videos/"
 )
-
-type message 

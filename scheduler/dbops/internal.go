@@ -10,7 +10,7 @@ func ReadVideoDeletionRecord(count int) ([]string, error) {
 	if err != nil {
 		return ids, err
 	}
-	defer dbConnection.Close()
+	defer stmtOut.Close()
 
 	rows, err := stmtOut.Query(count)
 	if err != nil {
