@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SessionMiddleware(context *gin.Context){
-	if !ValidateUserSession(context){
+func SessionMiddleware(context *gin.Context) {
+	if !ValidateUserSession(context) {
 		SendErrorResponse(context, defs.ErrorNotAuthUser)
 		return
 	}
@@ -30,7 +30,7 @@ func RegisterHandlers() *gin.Engine {
 	return router
 }
 
-func main(){
+func main() {
 	router := RegisterHandlers()
 	router.Run(":8080")
 }

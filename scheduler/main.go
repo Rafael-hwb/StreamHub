@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRouter() *gin.Engine{
+func RegisterRouter() *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/video-del-rec/:vid-id", videoDelRecHandler)
@@ -13,7 +13,7 @@ func RegisterRouter() *gin.Engine{
 	return router
 }
 
-func main(){
+func main() {
 	go taskrunner.Start()
 
 	router := RegisterRouter()

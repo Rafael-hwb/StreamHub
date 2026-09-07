@@ -6,10 +6,10 @@ type DataChannel chan interface{}
 
 type Function func(dc DataChannel) error
 
-const(
+const (
 	READY_TO_DISPATCH = "d"
-	READY_TO_EXECUTE = "e"
-	CLOSE = "c"
+	READY_TO_EXECUTE  = "e"
+	CLOSE             = "c"
 
-	VEDIO_PATH = "./videos/"
+	VIDEO_PATH = "./videos/"
 )

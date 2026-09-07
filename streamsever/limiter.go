@@ -1,23 +1,23 @@
 package main
 
-import(
+import (
 	"log"
 )
 
-type ConnectionLimiter struct{
+type ConnectionLimiter struct {
 	maxConnection int
-	bucket chan int
+	bucket        chan int
 }
 
-func CreateConnectionLimiter(maxCount int) *ConnectionLimiter{
+func CreateConnectionLimiter(maxCount int) *ConnectionLimiter {
 	return &ConnectionLimiter{
 		maxConnection: maxCount,
-		bucket: make(chan int, maxCount),
+		bucket:        make(chan int, maxCount),
 	}
 }
 
-func (limiter *ConnectionLimiter) GetConnection() bool{
-	if len(limiter.bucket) >= limiter.maxConnection{
+func (limiter *ConnectionLimiter) GetConnection() bool {
+	if len(limiter.bucket) >= limiter.maxConnection {
 		log.Printf("Reach the rate limitation.")
 		return false
 	}
@@ -26,7 +26,7 @@ func (limiter *ConnectionLimiter) GetConnection() bool{
 	return true
 }
 
-func (limiter *ConnectionLimiter) ReleaseConnection(){
-	c := <- limiter.bucket
-	log.Printf("Connection(%d) released.",c)
+func (limiter *ConnectionLimiter) ReleaseConnection() {
+	c := <-limiter.bucket
+	log.Printf("Connection(%d) released.", c)
 }

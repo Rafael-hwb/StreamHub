@@ -10,15 +10,15 @@ import (
 var HEADER_FIELD_SESSION = "X-Session-Id"
 var HEADER_FIELD_USERNAME = "X-User-Name"
 
-func ValidateUserSession(context *gin.Context) bool{
+func ValidateUserSession(context *gin.Context) bool {
 	sid := context.GetHeader(HEADER_FIELD_SESSION)
 
-	if len(sid) == 0{
+	if len(sid) == 0 {
 		return false
 	}
 
 	username, isValid := session.IsSessionValid(sid)
-	if isValid{
+	if isValid {
 		context.Request.Header.Set(HEADER_FIELD_USERNAME, username)
 		return true
 	}
@@ -26,10 +26,10 @@ func ValidateUserSession(context *gin.Context) bool{
 	return false
 }
 
-func ValidateUser(context *gin.Context) bool{
+func ValidateUser(context *gin.Context) bool {
 	username := context.GetHeader(HEADER_FIELD_USERNAME)
 
-	if len(username) == 0{
+	if len(username) == 0 {
 		SendErrorResponse(context, defs.ErrorNotAuthUser)
 		return false
 	}

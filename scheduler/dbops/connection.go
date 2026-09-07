@@ -2,19 +2,19 @@ package dbops
 
 import (
 	"database/sql"
-	"os"
 	"fmt"
-	"path/filepath"
-	_"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"os"
+	"path/filepath"
 )
 
-var(
+var (
 	dbConnection *sql.DB
-	err error
+	err          error
 )
 
-func init(){
+func init() {
 	cwd, _ := os.Getwd()
 	envPath := filepath.Join(cwd, ".env")
 	if _, err := os.Stat(envPath); os.IsNotExist(err) {
@@ -49,7 +49,7 @@ func init(){
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pwd, host, port, db)
 	dbConnection, err = sql.Open("mysql", dsn)
-	if err != nil{
+	if err != nil {
 		panic(err.Error())
 	}
 }

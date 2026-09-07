@@ -18,18 +18,18 @@ func ReadVideoDeletionRecord(count int) ([]string, error) {
 		return ids, err
 	}
 
-	for rows.Next(){
+	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err != nil{
-			return ids,err
+		if err := rows.Scan(&id); err != nil {
+			return ids, err
 		}
 		ids = append(ids, id)
 	}
-	return ids,nil
+	return ids, nil
 }
 
-func DeleteVideoDeletionRecord(vid string) error{
-	stmtDel ,err := dbConnection.Prepare("DELETE FROM video_del_rec WHERE video_id =? ")
+func DeleteVideoDeletionRecord(vid string) error {
+	stmtDel, err := dbConnection.Prepare("DELETE FROM video_del_rec WHERE video_id =? ")
 	if err != nil {
 		return err
 	}
