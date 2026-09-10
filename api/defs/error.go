@@ -15,4 +15,6 @@ var (
 	ErrorNotAuthUser            = ErrResponse{HttpSC: 401, Error: Err{Error: "User authentication failed.", ErrorCode: "002"}}
 	ErrorDBError                = ErrResponse{HttpSC: 500, Error: Err{Error: "Database ops failed.", ErrorCode: "003"}}
 	ErrorInternalFaults         = ErrResponse{HttpSC: 500, Error: Err{Error: "Internal serve error.", ErrorCode: "004"}}
+	ErrorVideoNotFound          = ErrResponse{HttpSC: 404, Error: Err{Error: "Video not found.", ErrorCode: "005"}}
+	ErrorNotVideoOwner          = ErrResponse{HttpSC: 403, Error: Err{Error: "Not the owner of this video.", ErrorCode: "006"}}
 )

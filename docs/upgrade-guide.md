@@ -467,16 +467,71 @@ userhome 用 `document.createElement` 或简单模板字符串渲染视频列表
 
 ### 7.1 配置集中
 
-新建根目录 `.env.example`，所有服务统一从环境读：
+**原则**：环境变量是唯一真相来源；`.env` 只是本地开发的便利文件，生产环境只读真实 env
+（Docker/K8s 注入），**不引入 yaml/viper 之类的配置文件**——多一个真相来源、多一层依赖，
+还容易把密钥提交进仓库。
+
+**新建 `internal/config/config.go`**（三服务同属一个 module，可直接 import）：
+
+```go
+package config
+
+type MySQL struct {
+	User, Pwd, Host, Port, DB string
+}
+
+func (m MySQL) DSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", m.User, m.Pwd, m.Host, m.Port, m.DB)
+}
+
+type Config struct {
+	MySQL         MySQL
+	APIAddr       string
+	StreamAddr    string
+	SchedulerAddr string
+	VideoDir      string
+	MaxUploadMB   int
+	AllowOrigin   string
+	GinMode       string
+}
+
+func Load() (*Config, error) // os.Getenv + 默认值 + 必填校验（如 MYSQL_PWD 缺失即报错）
+func MustLoad() *Config      // 启动期使用：Load 失败直接 log.Fatal，fail fast
+```
+
+`MustXxx` 是 Go 的惯例（`regexp.MustCompile`、`template.Must`），语义是"启动期出错就退出"——
+配置缺失时服务本来就不该起来，早崩早发现；但**请求处理里禁止 Must**，那会把配置问题变成用户的 500。
+
+**新建根目录 `.env.example`**（提交到仓库；真实的 `.env` 已被 .gitignore 忽略）：
 
 ```text
-MYSQL_USER, MYSQL_PWD, MYSQL_HOST, MYSQL_PORT, MYSQL_DB
-API_ADDR=:8080, STREAM_ADDR=:9000, SCHEDULER_ADDR=:9001
-VIDEO_DIR=./videos, MAX_UPLOAD_SIZE_MB=50, ALLOW_ORIGIN=http://localhost:8080
+MYSQL_USER=root
+MYSQL_PWD=            # 必填，缺失启动即失败
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DB=streamhub
+API_ADDR=:8080
+STREAM_ADDR=:9000
+SCHEDULER_ADDR=:9001
+VIDEO_DIR=./videos
+MAX_UPLOAD_SIZE_MB=50
+ALLOW_ORIGIN=http://localhost:8080
 GIN_MODE=debug
 ```
 
-代码里不再出现裸写的 `":8080"`、`"./videos/"`、`"localhost:3306"`。
+**改造现有加载点**（`api/dbops/connection.go`、`scheduler/dbops/connection.go` 两份几乎一字不差）：
+
+- 删掉 `init()` 里的加载逻辑、`os.Getwd()` 猜 `.env` 路径的三段 fallback、包级 `var err error`；
+- dbops 只保留"拼 DSN + `sql.Open` + `Ping`"，改成显式 `Init(cfg config.Config)`
+  （或 `Connect(m config.MySQL)`），由 main 调用，包内不再有副作用；
+- 只在 main 入口加载一次 `.env`：本地 `godotenv.Load(".env")` 且**忽略 not-exist**
+  （找不到说明用的是真实环境变量）；生产不调用 godotenv；
+- streamsever 的 `VIDEO_DIR`、`MAX_UPLOAD_SIZE`、`ALLOW_ORIGIN`、监听端口同样接 config（它目前完全没接）；
+- 代码里不再出现裸写的 `":8080"`、`"./videos/"`、`"localhost:3306"`、`"http://localhost:9001"`。
+
+**为什么不能靠 cwd 猜路径**：同一份二进制从不同目录启动，`.env` 命中与否完全不同——
+现在 scheduler 能连上库，只是因为 fallback 凑巧命中了 `api/.env`。统一约定
+"从仓库根启动 + 根目录一份 .env"，生产则完全不读 `.env`。
 
 ### 7.2 日志统一 + request id
 
@@ -493,6 +548,8 @@ GIN_MODE=debug
 ### 验收
 
 - 改端口/目录只动 .env，不动代码；
+- 缺必填配置（如 `MYSQL_PWD`）时服务启动即失败，日志指明缺哪项；
+- 三服务均通过 `internal/config` 取值，代码里搜不到 `":8080"`、`"./videos/"`、`"localhost:3306"`；
 - 请求日志能看到 status/耗时/request id；
 - Ctrl+C 时日志显示 graceful shutdown，无残留进程；
 - `/healthz` 200，DB 断开时 api/scheduler 的 healthz 返回 503。
@@ -513,6 +570,7 @@ GIN_MODE=debug
 
 - `internal/errs`：AppError 构造与 errors.As；
 - `internal/httpx`：ErrorHandler 对 AppError/未知错误/无错误的渲染（gin httptest）；
+- `internal/config`：默认值填充、必填缺失报错、DSN 拼装；
 - 视频 ID 校验：合法 UUID 通过，`../`、空串、超长拒绝；
 - bcrypt 往返：注册 hash 后登录比对成功/失败；
 - taskrunner：dispatcher 空记录 → 返回错误；executor 顺序删除调用次数正确（可注入 mock）。

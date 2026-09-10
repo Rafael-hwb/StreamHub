@@ -1,0 +1,39 @@
+<body>
+  <a href="/userhome">← 返回</a>
+  <video id="player" controls></video>
+  <h1 id="title"></h1>
+  <p id="meta"><span id="author"></span> · <span id="ctime"></span></p>
+
+  <h2>评论</h2>
+  <div id="comments"></div>
+
+  <form id="comment-form" hidden>          <!-- 没登录就不显示 -->
+    <textarea id="comment-input"></textarea>
+    <button type="submit">发布评论</button>
+  </form>
+
+  <script>
+    const vid = new URLSearchParams(location.search).get("vid");
+    if(!vid){ location.href = "/"; return; }
+    const meta = await (await fetch(`/api/videos/${vid}`)).json();
+    document.title = meta.title;
+    player.src = `http://localhost:9000/videos/${vid}`;
+
+    const res = await fetch(`/api/videos/${vid}/comments`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Session-Id": localStorage.getItem("session_id"),
+        },
+        body: JSON.stringify({ content }),
+        });
+        if (res.ok) { loadComments(); } 
+
+    async function loadComments(){
+        const res = await fetch(`/api/videos/${vid}/comments`);
+        const comments = await res.json();
+        //逐条渲染
+    }
+
+  </script>
+</body>

@@ -49,6 +49,68 @@
       localStorage.removeItem("user_name");
       location.href = "/";
     }
+
+    async function upload(){
+      const title = document.getElementById("title").value;
+      const fileInput = document.getElementById("file-input");
+      if (!title) { alert("请填写视频标题"); return;}
+      if(!fileInput.files[0]){ alert("请先选择文件"); return;}
+
+      const msg = document.getElementById("msg");
+
+      const metaRes = await fetch("/api/videos",{
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Id": localStorage.getItem("session_id"),
+        },
+        body: JSON.stringify({ title }),
+      });
+
+      const meta = await metaRes.json();
+      if(!metaRes.ok){
+        msg.textContent = meta.error || "登记失败";
+        return;
+      }
+
+      const vid = meta.id;
+
+      const formData = new FormData();
+      formData.append("file",fileInput.files[0]);
+      const res = await fetch("http://localhost:9090/upload/" + vid, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok){
+        msg.textContent = "上传成功，视频 id:" + vid;
+        const player = document.getElementById("player");
+        player.src = "http://localhost:9000/videos/" + vid;
+        player.hidden = false;
+        loadMyVideos();
+    } else {
+      msg.textContent = "文件上传失败：" + res.status +
+      "(video_info 里已有一条空记录,Step 6 的删除接口可用来清理）";
+      }
+    }
+
+    async function loadMyVideos() {
+      const res = await fetch("/api/my/videos",{
+        headers: {"X-Session-Id": localStorage.getItem("session_id")},
+      });
+      if (!res.ok){ location.href = "/"; return}
+      const videos = await res.json();
+        // 每行：标题(videos[i].title) + display_ctime(videos[i].display_ctime)
+    }
+
+    async function deletevideo(vid){
+      if(!confirm("确定删除这个视频吗？")) return;
+      const res = await fetch(`/api/videos/$(vid)`,{
+        method: "DELETE",
+        headers: {"X-Session-Id": localStorage.getItem("session_id") },
+      });
+      if (res.ok){ loadMyVideos(); }
+    }
   </script>
 </body>
 </html>
