@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/api/session"
+	"github.com/Rafael-hwb/streamhub/internal/errs"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +30,7 @@ func ValidateUser(context *gin.Context) bool {
 	username := context.GetHeader(HEADER_FIELD_USERNAME)
 
 	if len(username) == 0 {
-		SendErrorResponse(context, defs.ErrorNotAuthUser)
+		context.Error(errs.Unauthorized("User is not authenticated."))
 		return false
 	}
 
