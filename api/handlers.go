@@ -1,18 +1,31 @@
 package main
 
 import (
+	"log"
+	"net/http"
+	"strings"
+
 	"github.com/Rafael-hwb/streamhub/api/dbops"
 	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/api/session"
-	"log"
-	"net/http"
+	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/gin-gonic/gin"
 )
 
 func CreateUser(context *gin.Context) {
 	userBody := &defs.UserCredential{}
 	if err := context.ShouldBindJSON(userBody); err != nil {
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Request body is invalid."))
+		return
+	}
+
+	if strings.TrimSpace(userBody.UserName) == "" {
+		context.Error(errs.BadRequest("User name is required."))
+		return
+	}
+
+	if userBody.Pwd == "" {
+		context.Error(errs.BadRequest("Password is required."))
 		return
 	}
 
@@ -60,10 +73,18 @@ func CreateVideoInfo(context *gin.Context) {
 func Login(context *gin.Context) {
 	userBody := &defs.UserCredential{}
 	if err := context.ShouldBindJSON(userBody); err != nil {
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Request body is invalid."))
 		return
 	}
-
+	if strings.TrimSpace(userBody.UserName) == "" {
+		context.Error(errs.BadRequest("User name is required."))
+		return
+	}	
+	if userBody.Pwd == "" {
+		context.Error(errs.BadRequest("Password is required."))
+		return
+	}
+		
 	pwd, err := dbops.GetCredential(userBody.UserName)
 	if err != nil {
 		SendErrorResponse(context, defs.ErrorDBError)
