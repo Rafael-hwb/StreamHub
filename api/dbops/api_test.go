@@ -1,22 +1,65 @@
 package dbops
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/Rafael-hwb/streamhub/internal/config"
+	"github.com/joho/godotenv"
 )
 
-func clearTables() {
-	dbConnection.Exec("TRUNCATE users")
-	dbConnection.Exec("TRUNCATE video_info")
-	dbConnection.Exec("TRUNCATE comments")
-	dbConnection.Exec("TRUNCATE sessions")
+func clearTables() error {
+	tables := []string{"comments", "video_info", "sessions", "users"}
+
+	for _, table := range tables {
+		if _, err := dbConnection.Exec("TRUNCATE " + table); err != nil {
+			return fmt.Errorf("truncate %s: %w", table, err)
+		}
+	}
+
+	return nil
 }
 
 func TestMain(m *testing.M) {
-	clearTables()
-	m.Run()
-	clearTables()
+	if os.Getenv("STREAMHUB_INTEGRATION_TEST") != "1" {
+		fmt.Println("跳过 MySQL 集成测试")
+		os.Exit(0)
+	}
+
+	_ = godotenv.Load("../../.env")
+
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("加载测试配置失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	if cfg.MySQL.DB != "streamhub_test" {
+		fmt.Printf("拒绝清空非测试数据库: %s\n", cfg.MySQL.DB)
+		os.Exit(1)
+	}
+
+	if err := Init(*cfg); err != nil {
+		fmt.Printf("连接测试数据库失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := clearTables(); err != nil {
+		fmt.Printf("测试前清表失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	code := m.Run()
+
+	if err := clearTables(); err != nil {
+		fmt.Printf("测试后清表失败: %v\n", err)
+		code = 1
+	}
+
+	os.Exit(code)
 }
 
 // test:USers

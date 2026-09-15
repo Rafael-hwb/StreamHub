@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,8 @@ func LimiterMiddleware(maxCount int) gin.HandlerFunc {
 }
 
 func RegisterHandlers() *gin.Engine {
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery(), httpx.ErrorHandler())
 
 	router.Use(LimiterMiddleware(10))
 	router.Use(CorsMiddleware())

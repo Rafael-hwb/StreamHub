@@ -6,22 +6,25 @@ import (
 	"os"
 
 	"github.com/Rafael-hwb/streamhub/api/dbops"
-	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/internal/config"
+	"github.com/Rafael-hwb/streamhub/internal/errs"
+	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func SessionMiddleware(context *gin.Context) {
 	if !ValidateUserSession(context) {
-		SendErrorResponse(context, defs.ErrorNotAuthUser)
+		context.Error(errs.Unauthorized("User is not authenticated."))
+		context.Abort()
 		return
 	}
 	context.Next()
 }
 
 func RegisterHandlers() *gin.Engine {
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery(), httpx.ErrorHandler())
 
 	router.POST("/user", CreateUser)
 	router.POST("/user/login", Login)
@@ -30,7 +33,6 @@ func RegisterHandlers() *gin.Engine {
 	router.StaticFile("/", "./static/index.html")
 	router.StaticFile("/userhome", "./static/userhome.html")
 	router.StaticFile("/video.html", "./static/video.html")
-
 
 	publicAPI := router.Group("/api")
 	publicAPI.GET("/videos", ListVideosHandler)
