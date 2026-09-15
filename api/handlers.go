@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/api/session"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
+	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,43 +32,43 @@ func CreateUser(context *gin.Context) {
 	}
 
 	if err := dbops.AddCredential(userBody.UserName, userBody.Pwd); err != nil {
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
 	sid := session.GenerateSessionId(userBody.UserName)
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
 
-	SendNormalResponse(context, 201, signUpMessage)
+	httpx.Success(context, http.StatusCreated, signUpMessage)
 }
 
 
 func CreateVideoInfo(context *gin.Context) {
-	username := context.GetHeader(HEADER_FIELD_USERNAME)
-	aid, err := dbops.GetUserIDByName(username)
-	if err != nil || aid == 0 {
-		SendErrorResponse(context, defs.ErrorDBError)
+	aid, err := currentUserID(context)
+	if err != nil {
+		context.Error(errs.Internal(err))
 		return
 	}
 
+
 	videoBody := &defs.VideoCreateRequest{}
 	if err := context.ShouldBindJSON(videoBody); err != nil{
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Request body is invalid."))
 		return
 	}
 
 	if len(videoBody.Title) == 0{
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Video title is required."))
 		return
 	}
 
 	videoInfo, err := dbops.AddVideo(aid, videoBody.Title)
 	if err != nil {
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, 201, videoInfo)
+	httpx.Success(context, http.StatusCreated, videoInfo)
 }
 
 
@@ -87,42 +89,43 @@ func Login(context *gin.Context) {
 		
 	pwd, err := dbops.GetCredential(userBody.UserName)
 	if err != nil {
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
 	if len(pwd) == 0 {
-		SendErrorResponse(context, defs.ErrorNotAuthUser)
+		context.Error(errs.Unauthorized("Invalid user name or password."))
 		return
 	}
 
 	if pwd != userBody.Pwd {
-		SendErrorResponse(context, defs.ErrorNotAuthUser)
+		context.Error(errs.Unauthorized("Invalid user name or password."))
 		return
 	}
 
 	sid := session.GenerateSessionId(userBody.UserName)
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
 
-	SendNormalResponse(context, 200, signUpMessage)
+	httpx.Success(context, http.StatusOK, signUpMessage)
 }
 
 
 func MyVideos(context *gin.Context) {
-	username := context.GetHeader(HEADER_FIELD_USERNAME)
-	aid, err := dbops.GetUserIDByName(username)
-	if err != nil || aid == 0 {
-		SendErrorResponse(context, defs.ErrorDBError)
+	aid, err := currentUserID(context)
+
+	if err != nil {
+		context.Error(errs.Internal(err))
 		return
 	}
+
 
 	videos, err := dbops.ListVideosByAuthor(aid)
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, 200, videos)
+	httpx.Success(context, http.StatusOK, videos)
 }
 
 
@@ -131,15 +134,15 @@ func GetVideoInfo(context *gin.Context) {
 
 	video, err := dbops.GetVideoDetail(vid)
 	if err != nil {
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 	if video == nil {
-		SendErrorResponse(context, defs.ErrorVideoNotFound)
+		context.Error(errs.NotFound("Video not found."))
 		return
 	}
 
-	SendNormalResponse(context, 200, video)
+	httpx.Success(context, http.StatusOK, video)
 }
 
 
@@ -148,83 +151,83 @@ func ListCommentsHandler(context *gin.Context){
 
 	comments, err := dbops.ListCommentsByVideo(vid)
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, 200, comments)
+	httpx.Success(context, http.StatusOK, comments)
 }
 
 func AddCommentHandler(context *gin.Context){
 	vid := context.Param("vid")
-	username := context.GetHeader(HEADER_FIELD_USERNAME)
 	
 	video, err := dbops.GetVideo(vid)
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
 	if video == nil{
-		SendErrorResponse(context, defs.ErrorVideoNotFound)
+		context.Error(errs.NotFound("Video not found."))
 		return
 	}
 
-	aid, err := dbops.GetUserIDByName(username)
-	if err != nil || aid == 0{
-		SendErrorResponse(context, defs.ErrorDBError)
+	aid, err := currentUserID(context)
+	if err != nil {
+		context.Error(errs.Internal(err))
 		return
 	}
+
 
 	commentBody := &defs.CommentCreateRequest{}
 	if err := context.ShouldBindJSON(commentBody); err != nil{
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Request body is invalid."))
 		return
 	}
 
 	if len(commentBody.Content) == 0{
-		SendErrorResponse(context, defs.ErrorRequestBodyParseFailed)
+		context.Error(errs.BadRequest("Comment content is required."))
 		return
 	}
 
 	err = dbops.AddComment(vid, aid, commentBody.Content)
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, 201, gin.H{"success":true})
+	httpx.Success(context, http.StatusCreated, commentBody)
 
 }
 
 func DeleteVideoHandler(context *gin.Context){
 	vid := context.Param("vid")
-	username := context.GetHeader(HEADER_FIELD_USERNAME)
 
-	aid, err := dbops.GetUserIDByName(username)
-	if err != nil || aid == 0{
-		SendErrorResponse(context, defs.ErrorDBError)
+	aid, err := currentUserID(context)
+	if err != nil {
+		context.Error(errs.Internal(err))
 		return
 	}
 
+
 	video, err := dbops.GetVideo(vid)
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
 	if video == nil{
-		SendErrorResponse(context, defs.ErrorVideoNotFound)
+		context.Error(errs.NotFound("Video not found."))
 		return
 	}
 
 	if video.AuthorId != aid {
-		SendErrorResponse(context, defs.ErrorNotAuthUser)
+		context.Error(errs.Forbidden("You are not allowed to delete this video."))
 		return
 	}
 
 	if err := dbops.DeleteVideo(vid); err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 	
@@ -235,16 +238,31 @@ func DeleteVideoHandler(context *gin.Context){
 		resp.Body.Close()
 	}
 
-	SendNormalResponse(context, 200, gin.H{"success": true})
+	httpx.Success(context, http.StatusOK, nil)
 }
 
 
 func ListVideosHandler(context *gin.Context){
 	videos, err := dbops.ListAllVideos()
 	if err != nil{
-		SendErrorResponse(context, defs.ErrorDBError)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, 200, videos)
+	httpx.Success(context, http.StatusOK, videos)
+}
+
+
+func currentUserID(context *gin.Context) (int, error) {
+	username := context.GetHeader(HEADER_FIELD_USERNAME)
+
+	aid, err := dbops.GetUserIDByName(username)
+	if err != nil {
+		return 0, err
+	}
+	if aid == 0 {
+		return 0, fmt.Errorf("authenticated user %q not found", username)
+	}
+
+	return aid, nil
 }
