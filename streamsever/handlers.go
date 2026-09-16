@@ -27,10 +27,15 @@ func TestPageHandler(context *gin.Context) {
 
 func StreamHandler(context *gin.Context) {
 	vid := context.Param("vid-id")
-	if !validVideoID(vid){
+	if !ValidVideoID(vid){
 		context.Error(errs.BadRequest("Invalid video id."))
+		return
 	}
-	videoLink := VIDEO_DIR + vid
+	videoLink, err := SafePath(VIDEO_DIR, vid)
+	if err != nil {
+		context.Error(errs.Internal(err))
+		return
+	}
 
 	video, err := os.Open(videoLink)
 	if err != nil {
@@ -50,10 +55,11 @@ func UploadHandler(context *gin.Context) {
 	}
 
 	vid := context.Param("vid-id")
-	if !validVideoID(vid){
+	if !ValidVideoID(vid){
 		context.Error(errs.BadRequest("Invalid video id."))
+		return
 	}
-	
+
 	file, err := context.FormFile("file")
 	if err != nil {
 		context.Error(errs.BadRequest("Request is wrong."))
