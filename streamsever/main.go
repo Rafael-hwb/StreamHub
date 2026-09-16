@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 )
@@ -9,7 +10,7 @@ func LimiterMiddleware(maxCount int) gin.HandlerFunc {
 	limiter := CreateConnectionLimiter(maxCount)
 	return func(context *gin.Context) {
 		if !limiter.GetConnection() {
-			SendErrorResponse(context, ErrorTooManyRequests)
+			context.Error(errs.TooManyRequests("Too many requests."))
 			return
 		}
 		defer limiter.ReleaseConnection()

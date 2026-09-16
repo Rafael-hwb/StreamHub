@@ -30,3 +30,7 @@ func NotFound(msg string) *AppError     {
 func Internal(cause error) *AppError    { 
 	return &AppError{500, "INTERNAL", "Internal server error", cause} 
 }
+
+func TooManyRequests(msg string) *AppError {
+	return &AppError{429, "TOO_MANY_REQUESTS", msg, nil}
+}

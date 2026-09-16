@@ -6,19 +6,21 @@ import (
 	"os"
 	"time"
 
+	"github.com/Rafael-hwb/streamhub/internal/errs"
+	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 )
 
 func TestPageHandler(context *gin.Context) {
 	t, err := template.ParseFiles("./videos/upload.html")
 	if err != nil {
-		SendErrorResponse(context, ErrorInternalFaults)
+		context.Error(errs.Internal(err))
 		return
 	}
 
 	err = t.Execute(context.Writer, nil)
 	if err != nil {
-		SendErrorResponse(context, ErrorInternalFaults)
+		context.Error(errs.Internal(err))
 		return
 	}
 }
@@ -29,7 +31,7 @@ func StreamHandler(context *gin.Context) {
 
 	video, err := os.Open(videoLink)
 	if err != nil {
-		SendErrorResponse(context, ErrorInternalFaults)
+		context.Error(errs.Internal(err))
 		return
 	}
 	http.ServeContent(context.Writer, context.Request, "", time.Now(), video)
@@ -40,7 +42,7 @@ func StreamHandler(context *gin.Context) {
 func UploadHandler(context *gin.Context) {
 	err := context.Request.ParseMultipartForm(MAX_UPLOAD_SIZE)
 	if err != nil {
-		SendErrorResponse(context, ErrorFileTooBig)
+		context.Error(errs.BadRequest("File is too big."))
 		return
 	}
 
@@ -48,17 +50,15 @@ func UploadHandler(context *gin.Context) {
 
 	file, err := context.FormFile("file")
 	if err != nil {
-		SendErrorResponse(context, ErrorRequestError)
+		context.Error(errs.BadRequest("Request is wrong."))
 		return
 	}
 
 	err = context.SaveUploadedFile(file, VIDEO_DIR+vid)
 	if err != nil {
-		SendErrorResponse(context, ErrorInternalFaults)
+		context.Error(errs.Internal(err))
 		return
 	}
 
-	SendNormalResponse(context, http.StatusCreated, gin.H{
-		"success": true,
-	})
+	httpx.Success(context, http.StatusAccepted, nil)
 }
