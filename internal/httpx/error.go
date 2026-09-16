@@ -20,7 +20,7 @@ func ErrorHandler() gin.HandlerFunc {
 		var appError *errs.AppError
 
 		if errors.As(err, &appError) {
-			c.AbortWithStatusJSON(appError.HTTPStatus, Resonse{
+			c.AbortWithStatusJSON(appError.HTTPStatus, Response{
 				Code:    appError.Code,
 				Message: appError.Message,
 				Data:    nil,
@@ -33,7 +33,7 @@ func ErrorHandler() gin.HandlerFunc {
 		}
 
 		slog.Error("unhandled error", "path", c.Request.URL.Path, "err", err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, Resonse{
+		c.AbortWithStatusJSON(http.StatusInternalServerError, Response{
 			Code:    "INTERNAL",
 			Message: "Internal server error",
 			Data:    nil,

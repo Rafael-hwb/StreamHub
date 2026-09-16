@@ -1,11 +1,29 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+type testResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
+}
+
+func decodeResponse(t *testing.T, response *httptest.ResponseRecorder) testResponse {
+	t.Helper()
+
+	var body testResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v; body=%s", err, response.Body.String())
+	}
+	return body
+}
+
 
 func TestProtectedRejectMissingSession(t *testing.T) {
 	router := RegisterHandlers()
@@ -82,31 +100,17 @@ func TestCredentialEndpointsRejectInvalidInput(t *testing.T) {
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
 
-			if response.Code != http.StatusBadRequest {
-				t.Fatalf(
-					"expected status 400, got %d; body=%s",
-					response.Code,
-					response.Body.String(),
-				)
+			body := decodeResponse(t, response)
+
+			if body.Code != "BAD_REQUEST" {
+				t.Fatalf("expected code BAD_REQUEST, got %q", body.Code)
 			}
 
-			if !strings.Contains(
-				response.Body.String(),
-				`"code":"BAD_REQUEST"`,
-			) {
-				t.Fatalf(
-					"expected BAD_REQUEST response, got %s",
-					response.Body.String(),
-				)
-			}
-
-			if !strings.Contains(response.Body.String(), test.message) {
-				t.Fatalf(
-					"expected message %q, got %s",
-					test.message,
-					response.Body.String(),
-				)
+			if body.Message != test.message{
+				t.Fatalf("expected message %q, got %q", test.message, body.Message)
 			}
 		})
 	}
 }
+
+

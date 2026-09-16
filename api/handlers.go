@@ -44,13 +44,6 @@ func CreateUser(context *gin.Context) {
 
 
 func CreateVideoInfo(context *gin.Context) {
-	aid, err := currentUserID(context)
-	if err != nil {
-		context.Error(errs.Internal(err))
-		return
-	}
-
-
 	videoBody := &defs.VideoCreateRequest{}
 	if err := context.ShouldBindJSON(videoBody); err != nil{
 		context.Error(errs.BadRequest("Request body is invalid."))
@@ -59,6 +52,12 @@ func CreateVideoInfo(context *gin.Context) {
 
 	if len(videoBody.Title) == 0{
 		context.Error(errs.BadRequest("Video title is required."))
+		return
+	}
+
+	aid, err := currentUserID(context)
+	if err != nil {
+		context.Error(errs.Internal(err))
 		return
 	}
 
@@ -172,13 +171,6 @@ func AddCommentHandler(context *gin.Context){
 		return
 	}
 
-	aid, err := currentUserID(context)
-	if err != nil {
-		context.Error(errs.Internal(err))
-		return
-	}
-
-
 	commentBody := &defs.CommentCreateRequest{}
 	if err := context.ShouldBindJSON(commentBody); err != nil{
 		context.Error(errs.BadRequest("Request body is invalid."))
@@ -190,6 +182,12 @@ func AddCommentHandler(context *gin.Context){
 		return
 	}
 
+	aid, err := currentUserID(context)
+	if err != nil {
+		context.Error(errs.Internal(err))
+		return
+	}
+	
 	err = dbops.AddComment(vid, aid, commentBody.Content)
 	if err != nil{
 		context.Error(errs.Internal(err))
