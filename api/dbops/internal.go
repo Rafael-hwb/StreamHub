@@ -7,14 +7,13 @@ import (
 )
 
 func InsertSession(sid string, TTL int64, username string) error {
-	stringTTL := strconv.FormatInt(TTL, 10)
 	stmtIn, err := dbConnection.Prepare("INSERT INTO sessions (session_id, TTL, login_name) VALUES (?,?,?)")
 	if err != nil {
 		return err
 	}
 	defer stmtIn.Close()
 
-	_, err = stmtIn.Exec(sid, stringTTL, username)
+	_, err = stmtIn.Exec(sid, TTL, username)
 	if err != nil {
 		return err
 	}
@@ -24,7 +23,7 @@ func InsertSession(sid string, TTL int64, username string) error {
 
 func RetrieveSession(sid string) (*defs.SimpleSession, error) {
 	result := &defs.SimpleSession{}
-	stmtOut, err := dbConnection.Prepare("SELECT user_name, TTL FROM sessions WHERE session_id=?")
+	stmtOut, err := dbConnection.Prepare("SELECT login_name, TTL FROM sessions WHERE session_id=?")
 	if err != nil {
 		return nil, err
 	}

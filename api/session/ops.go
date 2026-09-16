@@ -20,38 +20,46 @@ func DeleteSession(sid string) {
 	dbops.DeleteSession(sid)
 }
 
-func LoadSessionsFromDB() {
+func LoadSessionsFromDB() error{
 	r, err := dbops.RetrieveAllSessions()
 	if err != nil {
-		return
+		return err
 	}
 	r.Range(func(k, v interface{}) bool {
 		perSimpleSession := v.(*defs.SimpleSession)
 		sessionMap.Store(k, perSimpleSession)
 		return true
 	})
+	return nil
 }
 
-func GenerateSessionId(username string) string {
-	sid, _ := utils.NewUUID()
+func GenerateSessionId(username string) (string, error) {
+	sid, err:= utils.NewUUID()
+	if err != nil{
+		return "", err
+	}
+
 	createTime := time.Now().UnixMilli()
+
 	TTL := createTime + 30*60*1000
 	perSimpleSession := &defs.SimpleSession{UserName: username, TTL: TTL}
 	sessionMap.Store(sid, perSimpleSession)
-	dbops.InsertSession(sid, TTL, username)
-	return sid
+	if err := dbops.InsertSession(sid, TTL, username);err != nil{
+		return "", err
+	}
+	return sid, nil
 }
 
 func IsSessionValid(sid string) (string, bool) {
-	perSimpleSession, isValid := sessionMap.Load(sid)
-	if isValid {
+	perSimpleSession, ok := sessionMap.Load(sid)
+	if ok {
 		nowTime := time.Now().UnixMilli()
 		if nowTime < perSimpleSession.(*defs.SimpleSession).TTL {
 			return perSimpleSession.(*defs.SimpleSession).UserName, true
 		}
-	} else {
-		DeleteSession(sid)
-		return "", false
+			DeleteSession(sid)
+			return "", false
 	}
 	return "", false
+
 }

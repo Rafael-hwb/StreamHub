@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/Rafael-hwb/streamhub/api/dbops"
+	"github.com/Rafael-hwb/streamhub/api/session"
 	"github.com/Rafael-hwb/streamhub/internal/config"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
@@ -64,6 +65,10 @@ func main() {
 		log.Fatalf("init db: %v", err)
 	}
 
+	if err := session.LoadSessionsFromDB(); err != nil{
+		log.Printf("warning: load sessions from db: %v", err)
+	}
+	
 	router := RegisterHandlers()
 	router.Run(":8080")
 }

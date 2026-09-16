@@ -37,7 +37,10 @@ func CreateUser(context *gin.Context) {
 		return
 	}
 
-	sid := session.GenerateSessionId(userBody.UserName)
+	sid, err:= session.GenerateSessionId(userBody.UserName)
+	if err != nil{
+		context.Error(errs.Internal(err))
+	}
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
 
 	httpx.Success(context, http.StatusCreated, signUpMessage)
@@ -103,7 +106,11 @@ func Login(context *gin.Context) {
 		return
 	}
 
-	sid := session.GenerateSessionId(userBody.UserName)
+	sid, err:= session.GenerateSessionId(userBody.UserName)
+	if err != nil{
+		context.Error(errs.Internal(err))
+	}
+
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
 
 	httpx.Success(context, http.StatusOK, signUpMessage)
