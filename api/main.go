@@ -8,14 +8,15 @@ import (
 	"github.com/Rafael-hwb/streamhub/api/dbops"
 	"github.com/Rafael-hwb/streamhub/api/session"
 	"github.com/Rafael-hwb/streamhub/internal/config"
+	"github.com/Rafael-hwb/streamhub/internal/dbconn"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
-func SessionMiddleware(context *gin.Context) {
-	if !ValidateUserSession(context) {
+func (h *Handler) SessionMiddleware(context *gin.Context) {
+	if !h.ValidateUserSession(context) {
 		context.Error(errs.Unauthorized("User is not authenticated."))
 		context.Abort()
 		return
@@ -23,12 +24,12 @@ func SessionMiddleware(context *gin.Context) {
 	context.Next()
 }
 
-func RegisterHandlers() *gin.Engine {
+func (h *Handler) RegisterHandlers() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), httpx.ErrorHandler())
 
-	router.POST("/user", CreateUser)
-	router.POST("/user/login", Login)
+	router.POST("/user", h.CreateUser)
+	router.POST("/user/login", h.Login)
 
 	router.Static("/static", "./static")
 	router.StaticFile("/", "./static/index.html")
@@ -36,16 +37,16 @@ func RegisterHandlers() *gin.Engine {
 	router.StaticFile("/video.html", "./static/video.html")
 
 	publicAPI := router.Group("/api")
-	publicAPI.GET("/videos", ListVideosHandler)
-	publicAPI.GET("videos/:vid", GetVideoInfo)
-	publicAPI.GET("/videos/:vid/comments", ListCommentsHandler)
+	publicAPI.GET("/videos", h.ListVideosHandler)
+	publicAPI.GET("videos/:vid", h.GetVideoInfo)
+	publicAPI.GET("/videos/:vid/comments", h.ListCommentsHandler)
 
 	authAPI := router.Group("/api")
-	authAPI.Use(SessionMiddleware)
-	authAPI.POST("/videos", CreateVideoInfo)
-	authAPI.GET("/my/videos", MyVideos)
-	authAPI.POST("/videos/:vid/comments", AddCommentHandler)
-	authAPI.DELETE("/videos/:vid", DeleteVideoHandler)
+	authAPI.Use(h.SessionMiddleware)
+	authAPI.POST("/videos", h.CreateVideoInfo)
+	authAPI.GET("/my/videos", h.MyVideos)
+	authAPI.POST("/videos/:vid/comments", h.AddCommentHandler)
+	authAPI.DELETE("/videos/:vid", h.DeleteVideoHandler)
 
 	return router
 }
@@ -61,14 +62,17 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	if err := dbops.Init(*cfg); err != nil {
-		log.Fatalf("init db: %v", err)
+	db, err := dbconn.Open(cfg.MySQL)
+	if err != nil {
+		log.Fatalf("open db: %v", err)
 	}
+	store := dbops.NewStore(db)
 
-	if err := session.LoadSessionsFromDB(); err != nil{
+	if err := session.LoadSessionsFromDB(store); err != nil {
 		log.Printf("warning: load sessions from db: %v", err)
 	}
-	
-	router := RegisterHandlers()
+
+	h := NewHandler(store)
+	router := h.RegisterHandlers()
 	router.Run(":8080")
 }

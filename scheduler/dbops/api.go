@@ -4,8 +4,8 @@ import (
 	"log"
 )
 
-func AddVideoDeletionRecord(vid string) error {
-	stmtIn, err := dbConnection.Prepare("INSERT INTO video_del_rec (video_id) VALUES (?)")
+func (s *Store) AddVideoDeletionRecord(vid string) error {
+	stmtIn, err := s.db.Prepare("INSERT INTO video_del_rec (video_id) VALUES (?)")
 
 	if err != nil {
 		return err

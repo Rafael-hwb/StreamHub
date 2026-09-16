@@ -69,11 +69,11 @@
 
       const meta = await metaRes.json();
       if(!metaRes.ok){
-        msg.textContent = meta.error || "登记失败";
+        msg.textContent = meta.message || "登记失败";
         return;
       }
 
-      const vid = meta.id;
+      const vid = meta.data.id;
 
       const formData = new FormData();
       formData.append("file",fileInput.files[0]);

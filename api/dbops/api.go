@@ -7,18 +7,17 @@ import (
 
 	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/api/utils"
-	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // 用户信息部分
-func AddCredential(loginName string, pwd string) error {
+func (s *Store) AddCredential(loginName string, pwd string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	stmtIns, err := dbConnection.Prepare("INSERT INTO users (login_name,pwd) VALUES (?,?)")
+	stmtIns, err := s.db.Prepare("INSERT INTO users (login_name,pwd) VALUES (?,?)")
 	if err != nil {
 		return err
 	}
@@ -32,8 +31,8 @@ func AddCredential(loginName string, pwd string) error {
 	return nil
 }
 
-func GetPasswordHash(loginName string) (string, error) {
-	stmtOut, err := dbConnection.Prepare("SELECT pwd FROM users WHERE login_name = ?")
+func (s *Store) GetPasswordHash(loginName string) (string, error) {
+	stmtOut, err := s.db.Prepare("SELECT pwd FROM users WHERE login_name = ?")
 	if err != nil {
 		log.Printf("%s", err)
 		return "", err
@@ -49,8 +48,8 @@ func GetPasswordHash(loginName string) (string, error) {
 	return pwdHash, nil
 }
 
-func DeleteCredential(loginName string) error {
-	stmtDel, err := dbConnection.Prepare("DELETE FROM users WHERE login_name = ?")
+func (s *Store) DeleteCredential(loginName string) error {
+	stmtDel, err := s.db.Prepare("DELETE FROM users WHERE login_name = ?")
 	if err != nil {
 		log.Printf("DeleteUser error: %s", err)
 		return err
@@ -66,7 +65,7 @@ func DeleteCredential(loginName string) error {
 }
 
 // 视频信息部分
-func AddVideo(aid int, title string) (*defs.VideoInfo, error) {
+func (s *Store) AddVideo(aid int, title string) (*defs.VideoInfo, error) {
 	vid, err := utils.NewUUID()
 	if err != nil {
 		return nil, err
@@ -74,8 +73,8 @@ func AddVideo(aid int, title string) (*defs.VideoInfo, error) {
 	t := time.Now()
 	ctime := t.Format("Jan 2 2006, 15:04:05")
 
-	stmtIn, err := dbConnection.Prepare(`INSERT INTO video_info (id, title, author_id, display_ctime)
-						VALUES(?, ?, ?, ?)`)
+	stmtIn, err := s.db.Prepare(`INSERT INTO video_info (id, title, author_id, display_ctime)
+							VALUES(?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +89,8 @@ func AddVideo(aid int, title string) (*defs.VideoInfo, error) {
 	return result, nil
 }
 
-func GetVideo(vid string) (*defs.VideoInfo, error) {
-	stmtOut, err := dbConnection.Prepare("SELECT author_id, title, display_ctime FROM video_info WHERE id=?")
+func (s *Store) GetVideo(vid string) (*defs.VideoInfo, error) {
+	stmtOut, err := s.db.Prepare("SELECT author_id, title, display_ctime FROM video_info WHERE id=?")
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +113,8 @@ func GetVideo(vid string) (*defs.VideoInfo, error) {
 	return videoInfo, nil
 }
 
-func DeleteVideo(id string) error {
-	stmtDel, err := dbConnection.Prepare("DELETE FROM video_info WHERE id=?")
+func (s *Store) DeleteVideo(id string) error {
+	stmtDel, err := s.db.Prepare("DELETE FROM video_info WHERE id=?")
 	if err != nil {
 		return err
 	}
@@ -130,13 +129,13 @@ func DeleteVideo(id string) error {
 }
 
 // 评论信息部分
-func AddComment(vid string, aid int, content string) error {
+func (s *Store) AddComment(vid string, aid int, content string) error {
 	id, err := utils.NewUUID()
 	if err != nil {
 		return err
 	}
 
-	stmtIn, err := dbConnection.Prepare("INSERT INTO comments (id, video_id, author_id, content, create_time) VALUES (?, ?, ?, ?, NOW())")
+	stmtIn, err := s.db.Prepare("INSERT INTO comments (id, video_id, author_id, content, create_time) VALUES (?, ?, ?, ?, NOW())")
 	if err != nil {
 		return err
 	}
@@ -150,13 +149,13 @@ func AddComment(vid string, aid int, content string) error {
 	return nil
 }
 
-func ListComments(vid string, originTime int, endTime int) ([]*defs.Comment, error) {
-	stmtOut, err := dbConnection.Prepare(`SELECT comments.id, users.login_name, comments.content
-										FROM comments
-										INNER JOIN users ON comments.author_id = users.id
-										where comments.video_id = ? 
-										AND comments.create_time > FROM_UNIXTIME(?) 
-										AND comments.create_time <= FROM_UNIXTIME(?)`)
+func (s *Store) ListComments(vid string, originTime int, endTime int) ([]*defs.Comment, error) {
+	stmtOut, err := s.db.Prepare(`SELECT comments.id, users.login_name, comments.content
+											FROM comments
+											INNER JOIN users ON comments.author_id = users.id
+											where comments.video_id = ?
+											AND comments.create_time > FROM_UNIXTIME(?)
+											AND comments.create_time <= FROM_UNIXTIME(?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +185,8 @@ func ListComments(vid string, originTime int, endTime int) ([]*defs.Comment, err
 }
 
 // 额外检索
-func GetUserIDByName(loginName string) (int, error) {
-	stmtOut, err := dbConnection.Prepare("SELECT id FROM users WHERE login_name=?")
+func (s *Store) GetUserIDByName(loginName string) (int, error) {
+	stmtOut, err := s.db.Prepare("SELECT id FROM users WHERE login_name=?")
 	if err != nil {
 		return 0, err
 	}
@@ -201,9 +200,9 @@ func GetUserIDByName(loginName string) (int, error) {
 	return id, nil
 }
 
-func ListVideosByAuthor(aid int) ([]*defs.VideoInfo, error) {
+func (s *Store) ListVideosByAuthor(aid int) ([]*defs.VideoInfo, error) {
 	var result []*defs.VideoInfo
-	stmtOut, err := dbConnection.Prepare("SELECT id, title, display_ctime FROM video_info WHERE author_id = ?")
+	stmtOut, err := s.db.Prepare("SELECT id, title, display_ctime FROM video_info WHERE author_id = ?")
 
 	if err != nil {
 		return result, err
@@ -237,12 +236,12 @@ func ListVideosByAuthor(aid int) ([]*defs.VideoInfo, error) {
 	return result, nil
 }
 
-func GetVideoDetail(vid string) (*defs.VideoDetail, error) {
-	stmtOut, err := dbConnection.Prepare(`SELECT video_info.id, video_info.author_id,
-							video_info.title, video_info.display_ctime, users.login_name
-						FROM video_info
-						INNER JOIN users ON video_info.author_id = users.id
-						WHERE video_info.id = ?`)
+func (s *Store) GetVideoDetail(vid string) (*defs.VideoDetail, error) {
+	stmtOut, err := s.db.Prepare(`SELECT video_info.id, video_info.author_id,
+								video_info.title, video_info.display_ctime, users.login_name
+							FROM video_info
+							INNER JOIN users ON video_info.author_id = users.id
+							WHERE video_info.id = ?`)
 	if err != nil {
 		return nil, err
 	}
@@ -268,13 +267,13 @@ func GetVideoDetail(vid string) (*defs.VideoDetail, error) {
 	return detail, nil
 }
 
-func ListCommentsByVideo(vid string) ([]*defs.Comment, error) {
+func (s *Store) ListCommentsByVideo(vid string) ([]*defs.Comment, error) {
 	var result []*defs.Comment
 
-	stmtOut, err := dbConnection.Prepare(`SELECT comments.id, users.login_name, comments.content
-						FROM comments
-						INNER JOIN users ON comments.author_id = users.id
-						WHERE comments.video_id = ?`)
+	stmtOut, err := s.db.Prepare(`SELECT comments.id, users.login_name, comments.content
+							FROM comments
+							INNER JOIN users ON comments.author_id = users.id
+							WHERE comments.video_id = ?`)
 
 	if err != nil {
 		return result, err
@@ -305,13 +304,13 @@ func ListCommentsByVideo(vid string) ([]*defs.Comment, error) {
 	return result, nil
 }
 
-func ListAllVideos() ([]*defs.VideoDetail, error) {
+func (s *Store) ListAllVideos() ([]*defs.VideoDetail, error) {
 	var result []*defs.VideoDetail
 
-	stmtOut, err := dbConnection.Prepare(`SELECT video_info.id, video_info.author_id,
-						video_info.title, video_info.display_ctime, users.login_name
-						FROM video_info
-						INNER JOIN users ON video_info.author_id = users.id`)
+	stmtOut, err := s.db.Prepare(`SELECT video_info.id, video_info.author_id,
+							video_info.title, video_info.display_ctime, users.login_name
+							FROM video_info
+							INNER JOIN users ON video_info.author_id = users.id`)
 
 	if err != nil {
 		return result, err

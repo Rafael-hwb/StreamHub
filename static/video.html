@@ -16,7 +16,7 @@
     const vid = new URLSearchParams(location.search).get("vid");
     if(!vid){ location.href = "/"; return; }
     const meta = await (await fetch(`/api/videos/${vid}`)).json();
-    document.title = meta.title;
+    document.title = meta.data.title;
     player.src = `http://localhost:9000/videos/${vid}`;
 
     const res = await fetch(`/api/videos/${vid}/comments`, {

@@ -8,15 +8,18 @@ import (
 	"time"
 
 	"github.com/Rafael-hwb/streamhub/internal/config"
+	"github.com/Rafael-hwb/streamhub/internal/dbconn"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var testStore *Store
 
 func clearTables() error {
 	tables := []string{"comments", "video_info", "sessions", "users"}
 
 	for _, table := range tables {
-		if _, err := dbConnection.Exec("TRUNCATE " + table); err != nil {
+		if _, err := testStore.db.Exec("TRUNCATE " + table); err != nil {
 			return fmt.Errorf("truncate %s: %w", table, err)
 		}
 	}
@@ -43,10 +46,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := Init(*cfg); err != nil {
+	db, err := dbconn.Open(cfg.MySQL)
+	if err != nil {
 		fmt.Printf("连接测试数据库失败: %v\n", err)
 		os.Exit(1)
 	}
+	testStore = NewStore(db)
 
 	if err := clearTables(); err != nil {
 		fmt.Printf("测试前清表失败: %v\n", err)
@@ -73,14 +78,14 @@ func TestUserWorkflow(t *testing.T) {
 }
 
 func testAddUser(t *testing.T) {
-	err := AddCredential("avenssi", "123")
+	err := testStore.AddCredential("avenssi", "123")
 	if err != nil {
 		t.Errorf("Error of AddUser: %v", err)
 	}
 }
 
 func testGetUser(t *testing.T) {
-	pwdHash, err := GetPasswordHash("avenssi")
+	pwdHash, err := testStore.GetPasswordHash("avenssi")
 	if err != nil {
 		t.Errorf("GetCredential: %v", err)
 		return
@@ -98,14 +103,14 @@ func testGetUser(t *testing.T) {
 }
 
 func testDeleteUser(t *testing.T) {
-	err := DeleteCredential("avenssi")
+	err := testStore.DeleteCredential("avenssi")
 	if err != nil {
 		t.Errorf("Error of DeleteUser: %v", err)
 	}
 }
 
 func testRegetUser(t *testing.T) {
-	pwd, err := GetPasswordHash("avenssi")
+	pwd, err := testStore.GetPasswordHash("avenssi")
 	if err != nil {
 		t.Errorf("Error of GetUser: %v", err)
 	}
@@ -126,7 +131,7 @@ func TestVideoWorkflow(t *testing.T) {
 }
 
 func testAddVideo(t *testing.T) {
-	video, err := AddVideo(1, "video1")
+	video, err := testStore.AddVideo(1, "video1")
 	if err != nil {
 		t.Errorf("Error of AddVideo: %v", err)
 	}
@@ -134,21 +139,21 @@ func testAddVideo(t *testing.T) {
 }
 
 func testGetVideo(t *testing.T) {
-	video, err := GetVideo(tempvid)
+	video, err := testStore.GetVideo(tempvid)
 	if err != nil || video.Title != "video1" {
 		t.Errorf("Error of GetVideo: %v", err)
 	}
 }
 
 func testDeleteVideo(t *testing.T) {
-	err := DeleteVideo(tempvid)
+	err := testStore.DeleteVideo(tempvid)
 	if err != nil {
 		t.Errorf("Error of DeleteVideo: %v", err)
 	}
 }
 
 func testRegetVideo(t *testing.T) {
-	video, err := GetVideo(tempvid)
+	video, err := testStore.GetVideo(tempvid)
 	if err != nil {
 		t.Errorf("Error of Regetvideo: %v", err)
 	}
@@ -171,12 +176,12 @@ func testAddComment(t *testing.T) {
 	aid := 1
 	content1 := "Add the first comment."
 	content2 := "Add the second comment."
-	err1 := AddComment(vid, aid, content1)
+	err1 := testStore.AddComment(vid, aid, content1)
 	if err1 != nil {
 		t.Errorf("Error of add the fitst comment: %v", err1)
 	}
 
-	err2 := AddComment(vid, aid, content2)
+	err2 := testStore.AddComment(vid, aid, content2)
 	if err2 != nil {
 		t.Errorf("Error of add the second comment: %v", err2)
 	}
@@ -187,7 +192,7 @@ func testListcomments(t *testing.T) {
 	originTime := 1514764880
 	endTime, _ := strconv.Atoi(strconv.FormatInt(time.Now().UnixNano()/1000000000, 10))
 
-	res, err := ListComments(vid, originTime, endTime)
+	res, err := testStore.ListComments(vid, originTime, endTime)
 	if err != nil {
 		t.Errorf("Error of ListComments: %v", err)
 	}

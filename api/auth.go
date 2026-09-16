@@ -10,14 +10,14 @@ import (
 var HEADER_FIELD_SESSION = "X-Session-Id"
 var HEADER_FIELD_USERNAME = "X-User-Name"
 
-func ValidateUserSession(context *gin.Context) bool {
+func (h *Handler) ValidateUserSession(context *gin.Context) bool {
 	sid := context.GetHeader(HEADER_FIELD_SESSION)
 
 	if len(sid) == 0 {
 		return false
 	}
 
-	username, isValid := session.IsSessionValid(sid)
+	username, isValid := session.IsSessionValid(h.store, sid)
 	if isValid {
 		context.Request.Header.Set(HEADER_FIELD_USERNAME, username)
 		return true

@@ -6,8 +6,7 @@ type UserCredential struct {
 	Pwd      string `json:"pwd"`
 }
 
-
-type VideoCreateRequest struct{
+type VideoCreateRequest struct {
 	Title string `json:"title"`
 }
 
@@ -27,7 +26,7 @@ type Comment struct {
 
 type SimpleSession struct {
 	UserName string `json:"user_name"`
-	TTL      int64 `json:"ttl"`
+	TTL      int64  `json:"ttl"`
 }
 
 type SignUp struct {
@@ -43,7 +42,6 @@ type VideoDetail struct {
 	DisplayCtime string `json:"display_ctime"`
 }
 
-
-type CommentCreateRequest struct{
+type CommentCreateRequest struct {
 	Content string `json:"content"`
 }

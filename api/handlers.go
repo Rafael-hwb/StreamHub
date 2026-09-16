@@ -15,7 +15,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateUser(context *gin.Context) {
+type Handler struct {
+	store *dbops.Store
+}
+
+func NewHandler(store *dbops.Store) *Handler {
+	return &Handler{store: store}
+}
+
+func (h *Handler) CreateUser(context *gin.Context) {
 	userBody := &defs.UserCredential{}
 	if err := context.ShouldBindJSON(userBody); err != nil {
 		context.Error(errs.BadRequest("Request body is invalid."))
@@ -32,40 +40,40 @@ func CreateUser(context *gin.Context) {
 		return
 	}
 
-	if err := dbops.AddCredential(userBody.UserName, userBody.Pwd); err != nil {
+	if err := h.store.AddCredential(userBody.UserName, userBody.Pwd); err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-	sid, err:= session.GenerateSessionId(userBody.UserName)
-	if err != nil{
+	sid, err := session.GenerateSessionId(h.store, userBody.UserName)
+	if err != nil {
 		context.Error(errs.Internal(err))
+		return
 	}
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
 
 	httpx.Success(context, http.StatusCreated, signUpMessage)
 }
 
-
-func CreateVideoInfo(context *gin.Context) {
+func (h *Handler) CreateVideoInfo(context *gin.Context) {
 	videoBody := &defs.VideoCreateRequest{}
-	if err := context.ShouldBindJSON(videoBody); err != nil{
+	if err := context.ShouldBindJSON(videoBody); err != nil {
 		context.Error(errs.BadRequest("Request body is invalid."))
 		return
 	}
 
-	if len(videoBody.Title) == 0{
+	if len(videoBody.Title) == 0 {
 		context.Error(errs.BadRequest("Video title is required."))
 		return
 	}
 
-	aid, err := currentUserID(context)
+	aid, err := h.currentUserID(context)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-	videoInfo, err := dbops.AddVideo(aid, videoBody.Title)
+	videoInfo, err := h.store.AddVideo(aid, videoBody.Title)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
@@ -74,8 +82,7 @@ func CreateVideoInfo(context *gin.Context) {
 	httpx.Success(context, http.StatusCreated, videoInfo)
 }
 
-
-func Login(context *gin.Context) {
+func (h *Handler) Login(context *gin.Context) {
 	userBody := &defs.UserCredential{}
 	if err := context.ShouldBindJSON(userBody); err != nil {
 		context.Error(errs.BadRequest("Request body is invalid."))
@@ -84,13 +91,13 @@ func Login(context *gin.Context) {
 	if strings.TrimSpace(userBody.UserName) == "" {
 		context.Error(errs.BadRequest("User name is required."))
 		return
-	}	
+	}
 	if userBody.Pwd == "" {
 		context.Error(errs.BadRequest("Password is required."))
 		return
 	}
-		
-	pwdHash, err := dbops.GetPasswordHash(userBody.UserName)
+
+	pwdHash, err := h.store.GetPasswordHash(userBody.UserName)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
@@ -101,14 +108,15 @@ func Login(context *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), []byte(userBody.Pwd));err != nil{
+	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), []byte(userBody.Pwd)); err != nil {
 		context.Error(errs.Unauthorized("Invalid user name or password."))
 		return
 	}
 
-	sid, err:= session.GenerateSessionId(userBody.UserName)
-	if err != nil{
+	sid, err := session.GenerateSessionId(h.store, userBody.UserName)
+	if err != nil {
 		context.Error(errs.Internal(err))
+		return
 	}
 
 	signUpMessage := &defs.SignUp{Success: true, SessionId: sid}
@@ -116,18 +124,16 @@ func Login(context *gin.Context) {
 	httpx.Success(context, http.StatusOK, signUpMessage)
 }
 
-
-func MyVideos(context *gin.Context) {
-	aid, err := currentUserID(context)
+func (h *Handler) MyVideos(context *gin.Context) {
+	aid, err := h.currentUserID(context)
 
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-
-	videos, err := dbops.ListVideosByAuthor(aid)
-	if err != nil{
+	videos, err := h.store.ListVideosByAuthor(aid)
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
@@ -135,11 +141,10 @@ func MyVideos(context *gin.Context) {
 	httpx.Success(context, http.StatusOK, videos)
 }
 
-
-func GetVideoInfo(context *gin.Context) {
+func (h *Handler) GetVideoInfo(context *gin.Context) {
 	vid := context.Param("vid")
 
-	video, err := dbops.GetVideoDetail(vid)
+	video, err := h.store.GetVideoDetail(vid)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
@@ -152,12 +157,11 @@ func GetVideoInfo(context *gin.Context) {
 	httpx.Success(context, http.StatusOK, video)
 }
 
-
-func ListCommentsHandler(context *gin.Context){
+func (h *Handler) ListCommentsHandler(context *gin.Context) {
 	vid := context.Param("vid")
 
-	comments, err := dbops.ListCommentsByVideo(vid)
-	if err != nil{
+	comments, err := h.store.ListCommentsByVideo(vid)
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
@@ -165,39 +169,39 @@ func ListCommentsHandler(context *gin.Context){
 	httpx.Success(context, http.StatusOK, comments)
 }
 
-func AddCommentHandler(context *gin.Context){
+func (h *Handler) AddCommentHandler(context *gin.Context) {
 	vid := context.Param("vid")
-	
-	video, err := dbops.GetVideo(vid)
-	if err != nil{
+
+	video, err := h.store.GetVideo(vid)
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-	if video == nil{
+	if video == nil {
 		context.Error(errs.NotFound("Video not found."))
 		return
 	}
 
 	commentBody := &defs.CommentCreateRequest{}
-	if err := context.ShouldBindJSON(commentBody); err != nil{
+	if err := context.ShouldBindJSON(commentBody); err != nil {
 		context.Error(errs.BadRequest("Request body is invalid."))
 		return
 	}
 
-	if len(commentBody.Content) == 0{
+	if len(commentBody.Content) == 0 {
 		context.Error(errs.BadRequest("Comment content is required."))
 		return
 	}
 
-	aid, err := currentUserID(context)
+	aid, err := h.currentUserID(context)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
-	
-	err = dbops.AddComment(vid, aid, commentBody.Content)
-	if err != nil{
+
+	err = h.store.AddComment(vid, aid, commentBody.Content)
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
@@ -206,23 +210,22 @@ func AddCommentHandler(context *gin.Context){
 
 }
 
-func DeleteVideoHandler(context *gin.Context){
+func (h *Handler) DeleteVideoHandler(context *gin.Context) {
 	vid := context.Param("vid")
 
-	aid, err := currentUserID(context)
+	aid, err := h.currentUserID(context)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-
-	video, err := dbops.GetVideo(vid)
-	if err != nil{
+	video, err := h.store.GetVideo(vid)
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-	if video == nil{
+	if video == nil {
 		context.Error(errs.NotFound("Video not found."))
 		return
 	}
@@ -232,11 +235,11 @@ func DeleteVideoHandler(context *gin.Context){
 		return
 	}
 
-	if err := dbops.DeleteVideo(vid); err != nil{
+	if err := h.store.DeleteVideo(vid); err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
-	
+
 	resp, err := http.Get("http://localhost:9001/video-del-rec/" + vid)
 	if err != nil {
 		log.Printf("Notify scheduler error: %v", err)
@@ -247,10 +250,9 @@ func DeleteVideoHandler(context *gin.Context){
 	httpx.Success(context, http.StatusOK, nil)
 }
 
-
-func ListVideosHandler(context *gin.Context){
-	videos, err := dbops.ListAllVideos()
-	if err != nil{
+func (h *Handler) ListVideosHandler(context *gin.Context) {
+	videos, err := h.store.ListAllVideos()
+	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
@@ -258,11 +260,10 @@ func ListVideosHandler(context *gin.Context){
 	httpx.Success(context, http.StatusOK, videos)
 }
 
-
-func currentUserID(context *gin.Context) (int, error) {
+func (h *Handler) currentUserID(context *gin.Context) (int, error) {
 	username := context.GetHeader(HEADER_FIELD_USERNAME)
 
-	aid, err := dbops.GetUserIDByName(username)
+	aid, err := h.store.GetUserIDByName(username)
 	if err != nil {
 		return 0, err
 	}

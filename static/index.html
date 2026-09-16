@@ -36,11 +36,11 @@
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        localStorage.setItem("session_id", data.session_id);
+        localStorage.setItem("session_id", data.data.session_id);
         localStorage.setItem("user_name", user_name);
         location.href = "/userhome";
       } else {
-        msg.textContent = data.error || "请求失败";
+        msg.textContent = data.message || "请求失败";
       }
     }
   </script>

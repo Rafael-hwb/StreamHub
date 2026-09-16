@@ -1,12 +1,19 @@
 package session
 
 import (
-	"github.com/Rafael-hwb/streamhub/api/dbops"
-	"github.com/Rafael-hwb/streamhub/api/defs"
-	"github.com/Rafael-hwb/streamhub/api/utils"
 	"sync"
 	"time"
+
+	"github.com/Rafael-hwb/streamhub/api/defs"
+	"github.com/Rafael-hwb/streamhub/api/utils"
 )
+
+// Store 是 session 持久化所需的最小接口，*dbops.Store 自动满足它。
+type Store interface {
+	InsertSession(sid string, ttl int64, username string) error
+	RetrieveAllSessions() (*sync.Map, error)
+	DeleteSession(sid string) error
+}
 
 var sessionMap *sync.Map
 
@@ -14,14 +21,13 @@ func init() {
 	sessionMap = &sync.Map{}
 }
 
-func DeleteSession(sid string) {
-	//I think lost the error
+func DeleteSession(store Store, sid string) {
 	sessionMap.Delete(sid)
-	dbops.DeleteSession(sid)
+	_ = store.DeleteSession(sid)
 }
 
-func LoadSessionsFromDB() error{
-	r, err := dbops.RetrieveAllSessions()
+func LoadSessionsFromDB(store Store) error {
+	r, err := store.RetrieveAllSessions()
 	if err != nil {
 		return err
 	}
@@ -33,9 +39,9 @@ func LoadSessionsFromDB() error{
 	return nil
 }
 
-func GenerateSessionId(username string) (string, error) {
-	sid, err:= utils.NewUUID()
-	if err != nil{
+func GenerateSessionId(store Store, username string) (string, error) {
+	sid, err := utils.NewUUID()
+	if err != nil {
 		return "", err
 	}
 
@@ -44,21 +50,21 @@ func GenerateSessionId(username string) (string, error) {
 	TTL := createTime + 30*60*1000
 	perSimpleSession := &defs.SimpleSession{UserName: username, TTL: TTL}
 	sessionMap.Store(sid, perSimpleSession)
-	if err := dbops.InsertSession(sid, TTL, username);err != nil{
+	if err := store.InsertSession(sid, TTL, username); err != nil {
 		return "", err
 	}
 	return sid, nil
 }
 
-func IsSessionValid(sid string) (string, bool) {
+func IsSessionValid(store Store, sid string) (string, bool) {
 	perSimpleSession, ok := sessionMap.Load(sid)
 	if ok {
 		nowTime := time.Now().UnixMilli()
 		if nowTime < perSimpleSession.(*defs.SimpleSession).TTL {
 			return perSimpleSession.(*defs.SimpleSession).UserName, true
 		}
-			DeleteSession(sid)
-			return "", false
+		DeleteSession(store, sid)
+		return "", false
 	}
 	return "", false
 

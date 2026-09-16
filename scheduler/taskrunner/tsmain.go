@@ -2,6 +2,8 @@ package taskrunner
 
 import (
 	"time"
+
+	"github.com/Rafael-hwb/streamhub/scheduler/dbops"
 )
 
 type Worker struct {
@@ -25,7 +27,7 @@ func (w *Worker) StartWorker() {
 	}
 }
 
-func Start() {
-	r := CreateNewRunner(3, false, VideoClearDispatcher, VideoClearExecutor)
+func Start(store *dbops.Store) {
+	r := CreateNewRunner(3, false, VideoClearDispatcher(store), VideoClearExecutor(store))
 	go r.StartDispatch()
 }

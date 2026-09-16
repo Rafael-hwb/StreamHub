@@ -4,9 +4,9 @@ import (
 	"log"
 )
 
-func ReadVideoDeletionRecord(count int) ([]string, error) {
+func (s *Store) ReadVideoDeletionRecord(count int) ([]string, error) {
 	var ids []string
-	stmtOut, err := dbConnection.Prepare("SELECT video_id FROM video_del_rec LIMIT ?")
+	stmtOut, err := s.db.Prepare("SELECT video_id FROM video_del_rec LIMIT ?")
 	if err != nil {
 		return ids, err
 	}
@@ -28,8 +28,8 @@ func ReadVideoDeletionRecord(count int) ([]string, error) {
 	return ids, nil
 }
 
-func DeleteVideoDeletionRecord(vid string) error {
-	stmtDel, err := dbConnection.Prepare("DELETE FROM video_del_rec WHERE video_id =? ")
+func (s *Store) DeleteVideoDeletionRecord(vid string) error {
+	stmtDel, err := s.db.Prepare("DELETE FROM video_del_rec WHERE video_id =? ")
 	if err != nil {
 		return err
 	}

@@ -5,19 +5,19 @@ import (
 	"os"
 )
 
-type MySQL struct{
+type MySQL struct {
 	User string
-	Pwd string
+	Pwd  string
 	Host string
 	Port string
-	DB string
+	DB   string
 }
 
-func (m MySQL) DSN() string{
+func (m MySQL) DSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", m.User, m.Pwd, m.Host, m.Port, m.DB)
 }
 
-type Config struct{
+type Config struct {
 	MySQL MySQL
 }
 

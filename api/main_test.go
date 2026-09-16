@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 type testResponse struct {
@@ -24,9 +26,14 @@ func decodeResponse(t *testing.T, response *httptest.ResponseRecorder) testRespo
 	return body
 }
 
+// newTestRouter 构造测试路由。这些测试只覆盖输入校验路径，
+// 校验在访问 store 之前就返回，故传 nil store 是安全的。
+func newTestRouter() *gin.Engine {
+	return NewHandler(nil).RegisterHandlers()
+}
 
 func TestProtectedRejectMissingSession(t *testing.T) {
-	router := RegisterHandlers()
+	router := newTestRouter()
 
 	request := httptest.NewRequest(http.MethodGet, "/api/my/videos", nil)
 	response := httptest.NewRecorder()
@@ -42,7 +49,7 @@ func TestProtectedRejectMissingSession(t *testing.T) {
 }
 
 func TestCredentialEndpointsRejectInvalidInput(t *testing.T) {
-	router := RegisterHandlers()
+	router := newTestRouter()
 
 	tests := []struct {
 		name    string
@@ -106,11 +113,9 @@ func TestCredentialEndpointsRejectInvalidInput(t *testing.T) {
 				t.Fatalf("expected code BAD_REQUEST, got %q", body.Code)
 			}
 
-			if body.Message != test.message{
+			if body.Message != test.message {
 				t.Fatalf("expected message %q, got %q", test.message, body.Message)
 			}
 		})
 	}
 }
-
-

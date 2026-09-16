@@ -1,13 +1,13 @@
 package dbops
 
 import (
-	"github.com/Rafael-hwb/streamhub/api/defs"
-	"strconv"
 	"sync"
+
+	"github.com/Rafael-hwb/streamhub/api/defs"
 )
 
-func InsertSession(sid string, TTL int64, username string) error {
-	stmtIn, err := dbConnection.Prepare("INSERT INTO sessions (session_id, TTL, login_name) VALUES (?,?,?)")
+func (s *Store) InsertSession(sid string, TTL int64, username string) error {
+	stmtIn, err := s.db.Prepare("INSERT INTO sessions (session_id, TTL, login_name) VALUES (?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -21,35 +21,31 @@ func InsertSession(sid string, TTL int64, username string) error {
 	return nil
 }
 
-func RetrieveSession(sid string) (*defs.SimpleSession, error) {
+func (s *Store) RetrieveSession(sid string) (*defs.SimpleSession, error) {
 	result := &defs.SimpleSession{}
-	stmtOut, err := dbConnection.Prepare("SELECT login_name, TTL FROM sessions WHERE session_id=?")
+	stmtOut, err := s.db.Prepare("SELECT login_name, TTL FROM sessions WHERE session_id=?")
 	if err != nil {
 		return nil, err
 	}
 	defer stmtOut.Close()
 
-	var username, stringTTL string
-
-	err = stmtOut.QueryRow(sid).Scan(&username, &stringTTL)
+	var (
+		username string
+		ttl      int64
+	)
+	err = stmtOut.QueryRow(sid).Scan(&username, &ttl)
 	if err != nil {
 		return nil, err
 	}
 
-	if TTL, err := strconv.ParseInt(stringTTL, 10, 64); err == nil {
-		result.UserName = username
-		result.TTL = TTL
-	} else {
-		return nil, err
-	}
-
+	result.UserName = username
+	result.TTL = ttl
 	return result, nil
-
 }
 
-func RetrieveAllSessions() (*sync.Map, error) {
+func (s *Store) RetrieveAllSessions() (*sync.Map, error) {
 	result := &sync.Map{}
-	stmtOut, err := dbConnection.Prepare("SELECT * FROM sessions")
+	stmtOut, err := s.db.Prepare("SELECT session_id, TTL, login_name FROM sessions")
 	if err != nil {
 		return nil, err
 	}
@@ -59,23 +55,25 @@ func RetrieveAllSessions() (*sync.Map, error) {
 	if err != nil {
 		return nil, err
 	}
-	var id, stringTTL, loginName string
+	defer rows.Close()
+
+	var id, loginName string
+	var ttl int64
 	for rows.Next() {
-		if err = rows.Scan(&id, &stringTTL, &loginName); err != nil {
+		if err = rows.Scan(&id, &ttl, &loginName); err != nil {
 			return nil, err
 		}
-		if TTL, err := strconv.ParseInt(stringTTL, 10, 64); err == nil {
-			perSimpleSession := &defs.SimpleSession{UserName: loginName, TTL: TTL}
-			result.Store(id, perSimpleSession)
-		} else {
-			return nil, err
-		}
+		perSimpleSession := &defs.SimpleSession{UserName: loginName, TTL: ttl}
+		result.Store(id, perSimpleSession)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
-func DeleteSession(sid string) error {
-	stmtDel, err := dbConnection.Prepare("DELETE FROM sessions WHERE session_id=?")
+func (s *Store) DeleteSession(sid string) error {
+	stmtDel, err := s.db.Prepare("DELETE FROM sessions WHERE session_id=?")
 	if err != nil {
 		return err
 	}

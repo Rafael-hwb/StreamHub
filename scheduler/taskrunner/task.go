@@ -2,72 +2,86 @@ package taskrunner
 
 import (
 	"errors"
-	"github.com/Rafael-hwb/streamhub/scheduler/dbops"
+	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"sync"
+
+	"github.com/Rafael-hwb/streamhub/scheduler/dbops"
 )
 
-func DeleteVideo(vid string) error {
-	err := os.Remove(VIDEO_PATH + vid)
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-	if err != nil && os.IsNotExist(err) {
-		log.Printf("Deleting video error: %v", err)
-	}
-
-	return nil
+func validVideoID(vid string) bool {
+	return uuidRe.MatchString(vid)
 }
 
-func VideoClearDispatcher(dc DataChannel) error {
-	ids, err := dbops.ReadVideoDeletionRecord(3)
-	if err != nil {
-		log.Printf("VideoClearDispatcher error: %v", err)
+func DeleteVideo(vid string) error {
+	if !validVideoID(vid) {
+		return fmt.Errorf("invalid video id %q", vid)
+	}
+
+	if err := os.Remove(VIDEO_PATH + vid); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-
-	if len(ids) == 0 {
-		return errors.New("VideoClearDispatcher is empty.")
-	}
-
-	for _, id := range ids {
-		dc <- id
-	}
 	return nil
 }
 
-func VideoClearExecutor(dc DataChannel) error {
-	errMap := &sync.Map{}
-	var wg sync.WaitGroup
-	var firstErr error
-
-forloop:
-	for {
-		select {
-		case id := <-dc:
-			wg.Add(1)
-			go func(id interface{}) {
-				if err := DeleteVideo(id.(string)); err != nil {
-					errMap.Store(id, err)
-					return
-				}
-
-				if err := dbops.DeleteVideoDeletionRecord(id.(string)); err != nil {
-					errMap.Store(id, err)
-					return
-				}
-			}(id)
-
-		default:
-			break forloop
+func VideoClearDispatcher(store *dbops.Store) Function {
+	return func(dc DataChannel) error {
+		ids, err := store.ReadVideoDeletionRecord(3)
+		if err != nil {
+			log.Printf("VideoClearDispatcher error: %v", err)
+			return err
 		}
+
+		if len(ids) == 0 {
+			return errors.New("VideoClearDispatcher is empty.")
+		}
+
+		for _, id := range ids {
+			dc <- id
+		}
+		return nil
 	}
-	wg.Wait()
+}
 
-	errMap.Range(func(k, v interface{}) bool {
-		if err := v.(error); err != nil && firstErr == nil {
-			firstErr = err
+func VideoClearExecutor(store *dbops.Store) Function {
+	return func(dc DataChannel) error {
+		errMap := &sync.Map{}
+		var wg sync.WaitGroup
+		var firstErr error
+
+	forloop:
+		for {
+			select {
+			case id := <-dc:
+				wg.Add(1)
+				go func(id interface{}) {
+					if err := DeleteVideo(id.(string)); err != nil {
+						errMap.Store(id, err)
+						return
+					}
+
+					if err := store.DeleteVideoDeletionRecord(id.(string)); err != nil {
+						errMap.Store(id, err)
+						return
+					}
+				}(id)
+
+			default:
+				break forloop
+			}
 		}
-		return true
-	})
-	return firstErr
+		wg.Wait()
+
+		errMap.Range(func(k, v interface{}) bool {
+			if err := v.(error); err != nil && firstErr == nil {
+				firstErr = err
+			}
+			return true
+		})
+		return firstErr
+	}
 }
