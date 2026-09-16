@@ -9,6 +9,7 @@ import (
 
 	"github.com/Rafael-hwb/streamhub/internal/config"
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func clearTables() error {
@@ -79,21 +80,32 @@ func testAddUser(t *testing.T) {
 }
 
 func testGetUser(t *testing.T) {
-	pwd, err := GetCredential("avenssi")
-	if err != nil || pwd != "123" {
-		t.Errorf("Error of GetUser: %v", err)
+	pwdHash, err := GetPasswordHash("avenssi")
+	if err != nil {
+		t.Errorf("GetCredential: %v", err)
+		return
+	}
+	if pwdHash == "" {
+		t.Errorf("expected a stored hash, got empty")
+		return
+	}
+	if pwdHash == "123" {
+		t.Errorf("password must not be stored in plaintext")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), []byte("123")); err != nil {
+		t.Errorf("password should match stored hash: %v", err)
 	}
 }
 
 func testDeleteUser(t *testing.T) {
-	err := DeleteCredential("avenssi", "123")
+	err := DeleteCredential("avenssi")
 	if err != nil {
 		t.Errorf("Error of DeleteUser: %v", err)
 	}
 }
 
 func testRegetUser(t *testing.T) {
-	pwd, err := GetCredential("avenssi")
+	pwd, err := GetPasswordHash("avenssi")
 	if err != nil {
 		t.Errorf("Error of GetUser: %v", err)
 	}

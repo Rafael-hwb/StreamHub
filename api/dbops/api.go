@@ -4,20 +4,27 @@ import (
 	"database/sql"
 	"log"
 	"time"
+
 	"github.com/Rafael-hwb/streamhub/api/defs"
 	"github.com/Rafael-hwb/streamhub/api/utils"
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
 )
 
-//用户信息部分
+// 用户信息部分
 func AddCredential(loginName string, pwd string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
 	stmtIns, err := dbConnection.Prepare("INSERT INTO users (login_name,pwd) VALUES (?,?)")
 	if err != nil {
 		return err
 	}
 	defer stmtIns.Close()
 
-	_, err = stmtIns.Exec(loginName, pwd)
+	_, err = stmtIns.Exec(loginName, string(hash))
 	if err != nil {
 		return err
 	}
@@ -25,7 +32,7 @@ func AddCredential(loginName string, pwd string) error {
 	return nil
 }
 
-func GetCredential(loginName string) (string, error) {
+func GetPasswordHash(loginName string) (string, error) {
 	stmtOut, err := dbConnection.Prepare("SELECT pwd FROM users WHERE login_name = ?")
 	if err != nil {
 		log.Printf("%s", err)
@@ -33,24 +40,24 @@ func GetCredential(loginName string) (string, error) {
 	}
 	defer stmtOut.Close()
 
-	var pwd string
-	err = stmtOut.QueryRow(loginName).Scan(&pwd)
+	var pwdHash string
+	err = stmtOut.QueryRow(loginName).Scan(&pwdHash)
 	if err != nil && err != sql.ErrNoRows {
 		return "", err
 	}
 
-	return pwd, nil
+	return pwdHash, nil
 }
 
-func DeleteCredential(loginName string, pwd string) error {
-	stmtDel, err := dbConnection.Prepare("DELETE FROM users WHERE login_name = ? AND pwd = ?")
+func DeleteCredential(loginName string) error {
+	stmtDel, err := dbConnection.Prepare("DELETE FROM users WHERE login_name = ?")
 	if err != nil {
 		log.Printf("DeleteUser error: %s", err)
 		return err
 	}
 	defer stmtDel.Close()
 
-	_, err = stmtDel.Exec(loginName, pwd)
+	_, err = stmtDel.Exec(loginName)
 	if err != nil {
 		return err
 	}
@@ -58,9 +65,7 @@ func DeleteCredential(loginName string, pwd string) error {
 	return nil
 }
 
-
-
-//视频信息部分
+// 视频信息部分
 func AddVideo(aid int, title string) (*defs.VideoInfo, error) {
 	vid, err := utils.NewUUID()
 	if err != nil {
@@ -124,8 +129,7 @@ func DeleteVideo(id string) error {
 	return nil
 }
 
-
-//评论信息部分
+// 评论信息部分
 func AddComment(vid string, aid int, content string) error {
 	id, err := utils.NewUUID()
 	if err != nil {
@@ -181,10 +185,8 @@ func ListComments(vid string, originTime int, endTime int) ([]*defs.Comment, err
 	return result, nil
 }
 
-
-
-//额外检索
-func GetUserIDByName(loginName string) (int, error){
+// 额外检索
+func GetUserIDByName(loginName string) (int, error) {
 	stmtOut, err := dbConnection.Prepare("SELECT id FROM users WHERE login_name=?")
 	if err != nil {
 		return 0, err
@@ -193,50 +195,47 @@ func GetUserIDByName(loginName string) (int, error){
 
 	var id int
 	err = stmtOut.QueryRow(loginName).Scan(&id)
-	if err != nil && err != sql.ErrNoRows{
+	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
 	return id, nil
 }
 
-
-func ListVideosByAuthor(aid int) ([]*defs.VideoInfo, error){
+func ListVideosByAuthor(aid int) ([]*defs.VideoInfo, error) {
 	var result []*defs.VideoInfo
 	stmtOut, err := dbConnection.Prepare("SELECT id, title, display_ctime FROM video_info WHERE author_id = ?")
 
-	if err != nil{
+	if err != nil {
 		return result, err
 	}
 	defer stmtOut.Close()
 
 	rows, err := stmtOut.Query(aid)
-	if err != nil{
-		return result,err
+	if err != nil {
+		return result, err
 	}
 	defer rows.Close()
 
-	for rows.Next(){
+	for rows.Next() {
 		var id, title, ctime string
-		if err := rows.Scan(&id, &title, &ctime); err != nil{
+		if err := rows.Scan(&id, &title, &ctime); err != nil {
 			return result, err
 		}
 		videoInfo := &defs.VideoInfo{
-			Id: id,
-			Title: title,
+			Id:           id,
+			Title:        title,
 			DisplayCtime: ctime,
-			AuthorId: aid,
+			AuthorId:     aid,
 		}
 		result = append(result, videoInfo)
 	}
 
-	if err := rows.Err(); err != nil{
+	if err := rows.Err(); err != nil {
 		return result, err
 	}
 
 	return result, nil
 }
-
-
 
 func GetVideoDetail(vid string) (*defs.VideoDetail, error) {
 	stmtOut, err := dbConnection.Prepare(`SELECT video_info.id, video_info.author_id,
@@ -269,14 +268,14 @@ func GetVideoDetail(vid string) (*defs.VideoDetail, error) {
 	return detail, nil
 }
 
-func ListCommentsByVideo(vid string) ([]*defs.Comment, error){
+func ListCommentsByVideo(vid string) ([]*defs.Comment, error) {
 	var result []*defs.Comment
 
 	stmtOut, err := dbConnection.Prepare(`SELECT comments.id, users.login_name, comments.content
 						FROM comments
 						INNER JOIN users ON comments.author_id = users.id
 						WHERE comments.video_id = ?`)
-	
+
 	if err != nil {
 		return result, err
 	}
@@ -289,18 +288,18 @@ func ListCommentsByVideo(vid string) ([]*defs.Comment, error){
 	}
 	defer rows.Close()
 
-	for rows.Next(){
+	for rows.Next() {
 		var id, name, content string
-		if err := rows.Scan(&id, &name, &content); err != nil{
+		if err := rows.Scan(&id, &name, &content); err != nil {
 			return result, err
 		}
 		result = append(result, &defs.Comment{
-			Id: id,
+			Id:         id,
 			AuthorName: name,
-			Content: content,
+			Content:    content,
 		})
 	}
-	if err := rows.Err(); err != nil{
+	if err := rows.Err(); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -324,12 +323,12 @@ func ListAllVideos() ([]*defs.VideoDetail, error) {
 		return result, err
 	}
 
-	for rows.Next(){
-		var(
-			id string
-			aid int
-			title string
-			ctime string
+	for rows.Next() {
+		var (
+			id         string
+			aid        int
+			title      string
+			ctime      string
 			authorName string
 		)
 		if err := rows.Scan(&id, &aid, &title, &ctime, &authorName); err != nil {

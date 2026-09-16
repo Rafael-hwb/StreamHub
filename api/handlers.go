@@ -12,6 +12,7 @@ import (
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func CreateUser(context *gin.Context) {
@@ -86,18 +87,18 @@ func Login(context *gin.Context) {
 		return
 	}
 		
-	pwd, err := dbops.GetCredential(userBody.UserName)
+	pwdHash, err := dbops.GetPasswordHash(userBody.UserName)
 	if err != nil {
 		context.Error(errs.Internal(err))
 		return
 	}
 
-	if len(pwd) == 0 {
+	if len(pwdHash) == 0 {
 		context.Error(errs.Unauthorized("Invalid user name or password."))
 		return
 	}
 
-	if pwd != userBody.Pwd {
+	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), []byte(userBody.Pwd));err != nil{
 		context.Error(errs.Unauthorized("Invalid user name or password."))
 		return
 	}
