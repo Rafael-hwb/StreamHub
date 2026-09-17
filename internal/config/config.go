@@ -19,6 +19,7 @@ func (m MySQL) DSN() string {
 
 type Config struct {
 	MySQL MySQL
+	SchedulerURL string
 }
 
 func Load() (*Config, error) {
@@ -26,7 +27,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Config{MySQL: mysql}, nil
+	return &Config{
+		MySQL: mysql,
+		SchedulerURL: envOr("SCHEDULER_URL", "http://localhost:9001"),
+		}, nil
 }
 
 func loadMySQL() (MySQL, error) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -11,16 +10,21 @@ import (
 	"github.com/Rafael-hwb/streamhub/api/session"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
+	"github.com/Rafael-hwb/streamhub/scheduler/schedulerclient"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Handler struct {
 	store *dbops.Store
+	scheduler *schedulerclient.Client
 }
 
-func NewHandler(store *dbops.Store) *Handler {
-	return &Handler{store: store}
+func NewHandler(store *dbops.Store, scheduler *schedulerclient.Client) *Handler {
+	return &Handler{
+		store: store,
+		scheduler: scheduler,
+	}
 }
 
 func (h *Handler) CreateUser(context *gin.Context) {
@@ -240,11 +244,10 @@ func (h *Handler) DeleteVideoHandler(context *gin.Context) {
 		return
 	}
 
-	resp, err := http.Get("http://localhost:9001/video-del-rec/" + vid)
+	err = h.scheduler.NotifyVideoDeleted(context.Request.Context(), vid)
+
 	if err != nil {
-		log.Printf("Notify scheduler error: %v", err)
-	} else {
-		resp.Body.Close()
+		context.Error(errs.Internal(err))
 	}
 
 	httpx.Success(context, http.StatusOK, nil)

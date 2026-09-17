@@ -11,6 +11,7 @@ import (
 	"github.com/Rafael-hwb/streamhub/internal/dbconn"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
+	"github.com/Rafael-hwb/streamhub/scheduler/schedulerclient"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -72,7 +73,9 @@ func main() {
 		log.Printf("warning: load sessions from db: %v", err)
 	}
 
-	h := NewHandler(store)
+	scheduler := schedulerclient.NewClient(cfg.SchedulerURL)
+
+	h := NewHandler(store, scheduler)
 	router := h.RegisterHandlers()
 	router.Run(":8080")
 }
