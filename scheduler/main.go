@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Rafael-hwb/streamhub/internal/config"
 	"github.com/Rafael-hwb/streamhub/internal/dbconn"
@@ -39,7 +43,10 @@ func main() {
 	}
 	store := dbops.NewStore(db)
 
-	go taskrunner.Start(store)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go taskrunner.Start(ctx, store, 10*time.Second)
 
 	router := RegisterRouter(store)
 

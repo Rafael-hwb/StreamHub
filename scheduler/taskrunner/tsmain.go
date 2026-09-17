@@ -1,33 +1,41 @@
 package taskrunner
 
 import (
+	"context"
+	"log"
 	"time"
-
-	"github.com/Rafael-hwb/streamhub/scheduler/dbops"
 )
 
 type Worker struct {
-	ticker time.Ticker
-	runner Runner
+	ticker *time.Ticker
+	runner *Runner
 }
 
-func CreateNewWorker(interval time.Duration, runner Runner) *Worker {
+func NewWorker(interval time.Duration, runner *Runner) *Worker {
 	return &Worker{
-		ticker: *time.NewTicker(interval * time.Second),
+		ticker: time.NewTicker(interval),
 		runner: runner,
 	}
 }
 
-func (w *Worker) StartWorker() {
+// Start 阻塞运行，直到 ctx 被取消。
+func (w *Worker) Start(ctx context.Context) {
+	defer w.ticker.Stop()
+
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-w.ticker.C:
-			go w.runner.StartAll()
+			// 顺序执行，不 go 出去 —— 重叠运行会并发读写同一批记录。
+			if err := w.runner.Run(ctx); err != nil {
+				log.Printf("taskrunner: %v", err)
+			}
 		}
 	}
 }
 
-func Start(store *dbops.Store) {
-	r := CreateNewRunner(3, false, VideoClearDispatcher(store), VideoClearExecutor(store))
-	go r.StartDispatch()
+func Start(ctx context.Context, store Store, interval time.Duration) {
+	runner := NewRunner(true, VideoClearDispatcher(store), VideoClearExecutor(store))
+	NewWorker(interval, runner).Start(ctx)
 }

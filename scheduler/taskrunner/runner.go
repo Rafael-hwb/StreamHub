@@ -1,66 +1,82 @@
 package taskrunner
 
+import (
+	"context"
+	"fmt"
+)
+
 type Runner struct {
-	Controller ControlChannel
-	Error      ControlChannel
-	Data       DataChannel
-	dataSize   int
-	longLived  bool
-	Dispatcher Function
-	Executor   Function
+	controller ControlChannel
+	data       DataChannel
+
+	longLived bool
+
+	dispatcher Function
+	executor   Function
 }
 
-func CreateNewRunner(dataSize int, longLived bool, d Function, e Function) *Runner {
+// NewRunner 创建一个可复用的任务 Runner。
+//
+//	longLived=false: 单次任务，Run 返回后关闭 channel。
+//	longLived=true:  常驻任务，channel 保持打开，Run 可被反复调用。
+func NewRunner(longLived bool, d, e Function) *Runner {
 	return &Runner{
-		Controller: make(chan string, 1),
-		Error:      make(chan string, 1),
-		Data:       make(chan interface{}, dataSize),
-		dataSize:   dataSize,
+		controller: make(ControlChannel, 1),
+		data:       make(DataChannel, BatchSize),
 		longLived:  longLived,
-		Dispatcher: d,
-		Executor:   e,
+		dispatcher: d,
+		executor:   e,
 	}
 }
 
-func (r *Runner) StartDispatch() {
-	defer func() {
-		if !r.longLived {
-			close(r.Controller)
-			close(r.Error)
-			close(r.Data)
-		}
-	}()
+// Run 跑完整的一轮：dispatch → execute。
+func (r *Runner) Run(ctx context.Context) error {
+	r.controller <- StateDispatch
 
+	err := r.loop(ctx)
+
+	if !r.longLived {
+		close(r.controller)
+		close(r.data)
+	}
+	return err
+}
+
+func (r *Runner) loop(ctx context.Context) error {
 	for {
 		select {
-		case c := <-r.Controller:
-			if c == READY_TO_DISPATCH {
-				err := r.Dispatcher(r.Data)
-				if err != nil {
-					r.Error <- CLOSE
-				} else {
-					r.Controller <- READY_TO_EXECUTE
-				}
-			}
+		case <-ctx.Done():
+			return ctx.Err()
 
-			if c == READY_TO_EXECUTE {
-				err := r.Executor(r.Data)
-				if err != nil {
-					r.Error <- CLOSE
-				} else {
-					r.Controller <- READY_TO_DISPATCH
+		case s := <-r.controller:
+			switch s {
+			case StateDispatch:
+				if err := r.dispatcher(ctx, r.data); err != nil {
+					return fmt.Errorf("dispatch: %w", err)
 				}
-			}
+				r.controller <- StateExecute
 
-		case e := <-r.Error:
-			if e == CLOSE {
-				return
+			case StateExecute:
+				if err := r.executor(ctx, r.data); err != nil {
+					return fmt.Errorf("execute: %w", err)
+				}
+				r.controller <- StateClose
+
+			case StateClose:
+				return nil
 			}
 		}
 	}
 }
 
-func (r *Runner) StartAll() {
-	r.Controller <- READY_TO_DISPATCH
-	r.StartDispatch()
+// send 把 id 推进 Data channel，缓冲满时返回错误而不是永久阻塞。
+func send(ctx context.Context, dc DataChannel, id string) error {
+	select {
+	case dc <- id:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return fmt.Errorf("data channel full (buffer=%d): dispatcher produced too many items", cap(dc))
+	}
 }

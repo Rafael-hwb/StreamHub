@@ -1,6 +1,9 @@
 package taskrunner
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestValidVideoID(t *testing.T) {
 	tests := []struct {
@@ -23,8 +26,9 @@ func TestValidVideoID(t *testing.T) {
 	}
 }
 
-func TestDeleteVideoRejectsInvalidID(t *testing.T) {
-	if err := DeleteVideo("../etc/passwd"); err == nil {
+func TestDeleteOneRejectsInvalidID(t *testing.T) {
+	// 校验先于 store 调用，所以 nil store 是安全的。
+	if err := deleteOne(context.Background(), nil, "../etc/passwd"); err == nil {
 		t.Fatal("expected error for invalid video id")
 	}
 }

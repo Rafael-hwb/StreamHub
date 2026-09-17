@@ -11,7 +11,7 @@ import (
 	"github.com/Rafael-hwb/streamhub/internal/dbconn"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
-	"github.com/Rafael-hwb/streamhub/scheduler/schedulerclient"
+	"github.com/Rafael-hwb/streamhub/api/schedulerclient"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )

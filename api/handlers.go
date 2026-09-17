@@ -10,7 +10,7 @@ import (
 	"github.com/Rafael-hwb/streamhub/api/session"
 	"github.com/Rafael-hwb/streamhub/internal/errs"
 	"github.com/Rafael-hwb/streamhub/internal/httpx"
-	"github.com/Rafael-hwb/streamhub/scheduler/schedulerclient"
+	"github.com/Rafael-hwb/streamhub/api/schedulerclient"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -248,6 +248,7 @@ func (h *Handler) DeleteVideoHandler(context *gin.Context) {
 
 	if err != nil {
 		context.Error(errs.Internal(err))
+		return
 	}
 
 	httpx.Success(context, http.StatusOK, nil)
